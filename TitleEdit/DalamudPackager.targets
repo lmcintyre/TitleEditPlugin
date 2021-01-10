@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project>
+    <Target Name="PackagePlugin" AfterTargets="Build">
+        <DalamudPackager
+                ProjectDir="$(ProjectDir)"
+                OutputPath="$(OutputPath)"
+                AssemblyName="$(AssemblyName)"
+                ManifestType="yaml"
+                MakeZip="true"
+                Include="TitleEdit.dll;
+                        TitleEdit.pdb;
+                        bgm.csv;
+                        titlescreens\A Realm Reborn.json;
+                        titlescreens\Heavensward.json;
+                        titlescreens\Stormblood.json;
+                        titlescreens\Shadowbringers.json;
+                        titlescreens\TE_Amaurot.json;
+                        titlescreens\TE_Amaurot 2.json;
+                        titlescreens\TE_Amaurot 3.json;
+                        titlescreens\TE_Central Shroud.json;
+                        titlescreens\TE_Dalamud.json;
+                        titlescreens\TE_Dalamud 2.json;
+                        titlescreens\TE_Don't Ask.json;
+                        titlescreens\TE_Hell's Kier.json;
+                        titlescreens\TE_Ishgard.json;
+                        titlescreens\TE_Reisen Temple.json;
+                        titlescreens\TE_Shadowbringers 2.json;
+                        titlescreens\TE_Titania's Forest.json;
+                        titlescreens\TE_Werlyt.json;
+                        TitleEdit.json"/>
+    </Target>    
+</Project>
