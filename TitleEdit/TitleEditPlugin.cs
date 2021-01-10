@@ -802,7 +802,8 @@ namespace TitleEdit
             ImGui.Combo("Title screen file to use", ref _selectedTitleIndex, _titleScreens, _titleScreens.Length);
             if (_titleScreens[_selectedTitleIndex] == "Random (custom)" && _titleScreens.Length > 2)
             {
-                ImGui.BeginChild("scrollingCustomList", new Vector2(GuiScale(200), GuiScale(150)), true, ImGuiWindowFlags.HorizontalScrollbar);
+                var width = GuiScale(_widestScreenName + 100);
+                ImGui.BeginChild("scrollingCustomList", new Vector2(width, GuiScale(300)), true, ImGuiWindowFlags.HorizontalScrollbar);
                 foreach (var titleScreen in _titleScreens)
                 {
                     if (titleScreen == "Random" || titleScreen == "Random (custom)")
@@ -823,7 +824,7 @@ namespace TitleEdit
             }
             ImGui.Combo("Title screen logo to use", ref _selectedLogoIndex, _titleLogos, _titleLogos.Length);
 
-            if (ImGui.BeginCombo("Title screen logo override", 
+            if (ImGui.BeginCombo("Logo override", 
                 GetOverrideSettingString(_configuration.Override)))
             {
                 if (ImGui.Selectable(GetOverrideSettingString(OverrideSetting.Override)))
