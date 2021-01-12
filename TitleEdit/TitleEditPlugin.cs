@@ -78,6 +78,11 @@ namespace TitleEdit
         private string _terriPath = "";
         private ushort _lastBgmId = 0;
         private string _songDescription = ""; // This is global so we don't have to do text size calc every frame
+        private TitleEditMenuVAlign _vAlign = TitleEditMenuVAlign.Default;
+        private TitleEditMenuHAlign _hAlign = TitleEditMenuHAlign.Default;
+        private TitleEditMenuHAlign _textAlign = TitleEditMenuHAlign.Default;
+        private float _vInset = 0.0f;
+        private float _hInset = 0.0f;
 
         private Dictionary<uint, TerritoryType> _territoryPaths;
         private Dictionary<uint, string> _weathers;
@@ -208,7 +213,7 @@ namespace TitleEdit
             if (!_isImguiTitleEditOpen)
                 return;
 
-            ImGui.SetNextWindowSize(new Vector2(GuiScale(480), GuiScale(450)));
+            ImGui.SetNextWindowSize(new Vector2(GuiScale(480), GuiScale(530)));
             ImGui.Begin("Title Editing", ref _isImguiTitleEditOpen, ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
             ImGui.BeginTabBar("TitleEditMainTabBar");
             DrawCreation();
@@ -233,9 +238,9 @@ namespace TitleEdit
             ImGui.Text("This tab allows you to create a custom title screen.");
             ImGui.Text("It is recommended to use first-person view.");
 #if DEBUG
-            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(320)), true, ImGuiWindowFlags.NoScrollbar);
+            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(400)), true, ImGuiWindowFlags.NoScrollbar);
 #else
-            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(320)), true, ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoScrollbar);
+            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(400)), true, ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoScrollbar);
 #endif
             bool stateInvalid;
             BgmInfo selectedBgm = new BgmInfo {Title = "Unknown", FilePath = ""};
@@ -457,6 +462,48 @@ namespace TitleEdit
                     var scaled = _tsTimeMin / 60f * 100;
                     _tsTimeOffset = (int) (_tsTimeHrs * 100 + scaled % 100);
                 }
+                
+                // Menu Alignment
+                ImGui.PushItemWidth(GuiScale(100));
+                ImGui.Text("Menu Vertical Alignment:");
+                ImGui.SameLine();
+                if (ImGui.BeginCombo("##newvalign", _vAlign.ToString())) {
+                    if (ImGui.Selectable(TitleEditMenuVAlign.Default.ToString(), _vAlign == TitleEditMenuVAlign.Default)) _vAlign = TitleEditMenuVAlign.Default;
+                    if (ImGui.Selectable(TitleEditMenuVAlign.Top.ToString(), _vAlign == TitleEditMenuVAlign.Top)) _vAlign = TitleEditMenuVAlign.Top;
+                    if (ImGui.Selectable(TitleEditMenuVAlign.Center.ToString(), _vAlign == TitleEditMenuVAlign.Center)) _vAlign = TitleEditMenuVAlign.Center;
+                    if (ImGui.Selectable(TitleEditMenuVAlign.Bottom.ToString(), _vAlign == TitleEditMenuVAlign.Bottom)) _vAlign = TitleEditMenuVAlign.Bottom;
+                    ImGui.EndCombo();
+                }
+
+                if (_vAlign != TitleEditMenuVAlign.Default && _vAlign != TitleEditMenuVAlign.Center) {
+                    ImGui.SameLine();
+                    ImGui.SliderFloat("% Inset##vInset", ref _vInset, 0, 0.5f);
+                }
+                
+                ImGui.Text("Menu Horizontal Alignment:");
+                ImGui.SameLine();
+                if (ImGui.BeginCombo("##newhalign", _hAlign.ToString())) {
+                    if (ImGui.Selectable(TitleEditMenuHAlign.Default.ToString(), _hAlign == TitleEditMenuHAlign.Default)) _hAlign = TitleEditMenuHAlign.Default;
+                    if (ImGui.Selectable(TitleEditMenuHAlign.Left.ToString(), _hAlign == TitleEditMenuHAlign.Left)) _hAlign = TitleEditMenuHAlign.Left;
+                    if (ImGui.Selectable(TitleEditMenuHAlign.Center.ToString(), _hAlign == TitleEditMenuHAlign.Center)) _hAlign = TitleEditMenuHAlign.Center;
+                    if (ImGui.Selectable(TitleEditMenuHAlign.Right.ToString(), _hAlign == TitleEditMenuHAlign.Right)) _hAlign = TitleEditMenuHAlign.Right;
+                    ImGui.EndCombo();
+                }
+                if (_hAlign != TitleEditMenuHAlign.Default && _hAlign != TitleEditMenuHAlign.Center) {
+                    ImGui.SameLine();
+                    ImGui.SliderFloat("% Inset##hInset", ref _hInset, 0, 0.5f);
+                }
+                
+                ImGui.Text("Menu Text Alignment: ");
+                ImGui.SameLine();
+                if (ImGui.BeginCombo("##newtextalign", _textAlign.ToString())) {
+                    if (ImGui.Selectable(TitleEditMenuHAlign.Default.ToString(), _textAlign == TitleEditMenuHAlign.Default)) _textAlign = TitleEditMenuHAlign.Default;
+                    if (ImGui.Selectable(TitleEditMenuHAlign.Left.ToString(), _textAlign == TitleEditMenuHAlign.Left)) _textAlign = TitleEditMenuHAlign.Left;
+                    if (ImGui.Selectable(TitleEditMenuHAlign.Center.ToString(), _textAlign == TitleEditMenuHAlign.Center)) _textAlign = TitleEditMenuHAlign.Center;
+                    if (ImGui.Selectable(TitleEditMenuHAlign.Right.ToString(), _textAlign == TitleEditMenuHAlign.Right)) _textAlign = TitleEditMenuHAlign.Right;
+                    ImGui.EndCombo();
+                }
+                ImGui.PopItemWidth();
             }
 
 #if DEBUG
@@ -506,6 +553,11 @@ namespace TitleEdit
                 scr.WeatherId = (byte) _weatherId;
                 scr.TimeOffset = (ushort) _tsTimeOffset;
                 scr.BgmPath = selectedBgm.FilePath;
+                scr.VAlign = _vAlign;
+                scr.HAlign = _hAlign;
+                scr.VInset = _vInset;
+                scr.HInset = _hInset;
+                scr.TextAlign = _textAlign;
                 var text = JsonConvert.SerializeObject(scr, Formatting.Indented);
                 bool createSuccess = false;
                 try
@@ -797,7 +849,7 @@ namespace TitleEdit
 
             bool canSave = true;
             ImGui.Text("This window allows you to change what title screen plays when you start the game.");
-            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(341)), true);
+            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(421)), true);
             
             ImGui.Combo("Title screen file to use", ref _selectedTitleIndex, _titleScreens, _titleScreens.Length);
             if (_titleScreens[_selectedTitleIndex] == "Random (custom)" && _titleScreens.Length > 2)

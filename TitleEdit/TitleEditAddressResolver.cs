@@ -28,6 +28,8 @@ namespace TitleEdit
         public static IntPtr PlayMusic { get; private set; }
         public static IntPtr BgmControl { get; private set; }
         public static IntPtr WeatherPtr { get; private set; }
+        public static IntPtr AtkUnitBaseSetPosition { get; private set; }
+        public static IntPtr GameWindowSize { get; private set; }
 
         public static void Setup64Bit(SigScanner sig)
         {
@@ -41,6 +43,8 @@ namespace TitleEdit
             BgmControl = sig.GetStaticAddressFromSig("48 8B 05 ?? ?? ?? ?? 48 85 C0 74 42 83 78 08 0A", 3);
             WeatherPtr = sig.GetStaticAddressFromSig("40 55 41 56 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 20 48 8B 15 ?? ?? ?? ?? 4C 8B F1 48 0F BE 42 ?? 85 C0 78 05 83 F8 20 72 0E", 0x25);
             WeatherPtr = Marshal.ReadIntPtr(WeatherPtr) + 0x27;
+            AtkUnitBaseSetPosition = sig.ScanText("4C 8B 89 ?? ?? ?? ?? 41 0F BF C0");
+            GameWindowSize = sig.GetStaticAddressFromSig("48 89 05 ?? ?? ?? ?? 48 85 D2 74 2C");
         }
     }
 }
