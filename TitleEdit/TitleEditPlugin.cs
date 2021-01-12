@@ -849,7 +849,7 @@ namespace TitleEdit
 
             bool canSave = true;
             ImGui.Text("This window allows you to change what title screen plays when you start the game.");
-            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(341)), true);
+            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(421)), true);
             
             ImGui.Combo("Title screen file to use", ref _selectedTitleIndex, _titleScreens, _titleScreens.Length);
             if (_titleScreens[_selectedTitleIndex] == "Random (custom)" && _titleScreens.Length > 2)
