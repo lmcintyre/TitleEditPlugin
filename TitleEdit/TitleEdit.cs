@@ -26,6 +26,9 @@ namespace TitleEdit
         [UnmanagedFunctionPointer(CallingConvention.ThisCall, CharSet = CharSet.Ansi)]
         private delegate IntPtr OnPlayMusic(IntPtr self, string filename, float volume, uint fadeTime);
 
+        [UnmanagedFunctionPointer(CallingConvention.ThisCall, CharSet = CharSet.Ansi)]
+        private delegate IntPtr SetAddonPosition(IntPtr self, short x, short y);
+
         private delegate void SetTimePrototype(ushort timeOffset);
 
         // The size of the BGMControl object
@@ -38,6 +41,7 @@ namespace TitleEdit
         private readonly Hook<OnPlayMusic> _playMusicHook;
         private readonly Hook<OnFixOn> _fixOnHook;
         private readonly Hook<OnLoadLogoResource> _loadLogoResourceHook;
+        private readonly Hook<SetAddonPosition> _setAddonPositionHook;
 
         private readonly SetTimePrototype _setTime;
 
@@ -119,6 +123,7 @@ namespace TitleEdit
             _playMusicHook = new Hook<OnPlayMusic>(TitleEditAddressResolver.PlayMusic, new OnPlayMusic(HandlePlayMusic), this);
             _fixOnHook = new Hook<OnFixOn>(TitleEditAddressResolver.FixOn, new OnFixOn(HandleFixOn), this);
             _loadLogoResourceHook = new Hook<OnLoadLogoResource>(TitleEditAddressResolver.LoadLogoResource, new OnLoadLogoResource(HandleLoadLogoResource), this);
+            _setAddonPositionHook = new Hook<SetAddonPosition>(TitleEditAddressResolver.AtkUnitBaseSetPosition, new SetAddonPosition(HandleSetAddonPosition), this);
 
             _setTime = Marshal.GetDelegateForFunctionPointer<SetTimePrototype>(TitleEditAddressResolver.SetTime);
         }
@@ -256,6 +261,7 @@ namespace TitleEdit
             _createSceneHook.Enable();
             _playMusicHook.Enable();
             _fixOnHook.Enable();
+            _setAddonPositionHook.Enable();
         }
 
         public void Dispose()
@@ -264,6 +270,7 @@ namespace TitleEdit
             _createSceneHook.Dispose();
             _playMusicHook.Dispose();
             _fixOnHook.Dispose();
+            _setAddonPositionHook.Disable();
         }
 
         private void ForceTime(ushort timeOffset, int forceTime)
@@ -439,6 +446,69 @@ namespace TitleEdit
             ret[1] = floats.Y;
             ret[2] = floats.Z;
             return ret;
+        }
+        
+        private IntPtr HandleSetAddonPosition(IntPtr self, short x, short y) {
+            if (_currentScreen != null && Marshal.PtrToStringAnsi(self + 8) == "_TitleMenu") {
+                var position = PositionMenu(_currentScreen);
+                if (position != null) return _setAddonPositionHook.Original(self, position.Value.x ?? x, position.Value.y ?? y);
+            }
+            return _setAddonPositionHook.Original(self, x, y);
+        }
+        
+        private (short? x, short? y)? PositionMenu(TitleEditScreen screen) {
+
+            var addon = _pi.Framework.Gui.GetAddonByName("_TitleMenu", 1);
+            if (addon == null) return null;
+            
+            (short? x, short? y) position = (null, null);
+
+            var gameWindowWidth = Marshal.ReadInt16(TitleEditAddressResolver.GameWindowSize);
+            var gameWindowHeight = Marshal.ReadInt16(TitleEditAddressResolver.GameWindowSize, 4);
+
+            var hInset = gameWindowWidth * screen.HInset;
+            var vInset = gameWindowWidth * screen.VInset;
+            
+            
+            position.y = screen.VAlign switch {
+                TitleEditMenuVAlign.Top => (short) vInset,
+                TitleEditMenuVAlign.Center => (short) ((gameWindowHeight / 2f) - (addon.Height / 2)),
+                TitleEditMenuVAlign.Bottom => (short) (gameWindowHeight - addon.Height - vInset),
+                _ => null
+            };
+            
+            position.x = screen.HAlign switch {
+                TitleEditMenuHAlign.Left => (short) hInset,
+                TitleEditMenuHAlign.Center => (short) ((gameWindowWidth / 2f) - (addon.Width / 2)),
+                TitleEditMenuHAlign.Right => (short) (Marshal.ReadInt16(TitleEditAddressResolver.GameWindowSize, 0) - addon.Width - hInset),
+                _ => null
+            };
+
+            if (screen.TextAlign != TitleEditMenuHAlign.Default) {
+                var nodeList = Marshal.ReadIntPtr(addon.Address, 0x78);
+                if (nodeList != IntPtr.Zero) {
+                    var nodeListCount = (ushort) Marshal.ReadInt16(addon.Address, 0x6A);
+                    for (var i = 4; i < nodeListCount; i++) {
+                        var buttonComponentNode = Marshal.ReadIntPtr(nodeList, i * 8);
+                        if (buttonComponentNode == IntPtr.Zero) continue;
+                        var buttonComponent = Marshal.ReadIntPtr(buttonComponentNode, 0xA8);
+                        if (buttonComponent == IntPtr.Zero) continue;
+                        var bNodeList = Marshal.ReadIntPtr(buttonComponent, 0x58);
+                        if (bNodeList == IntPtr.Zero) continue;
+                        var bNodeListCount = (ushort) Marshal.ReadInt16(buttonComponent, 0x4A);
+                        if (bNodeListCount < 5) continue;
+                        var textNode = Marshal.ReadIntPtr(bNodeList, 32);
+                        if (textNode == IntPtr.Zero) continue;
+                        var alignment = screen.TextAlign switch {
+                            TitleEditMenuHAlign.Left => (byte) 0x13,
+                            TitleEditMenuHAlign.Right => (byte) 0x15,
+                            _ => (byte) 0x14,
+                        };
+                        Marshal.WriteByte(textNode, 0x14C, alignment);
+                    }
+                }
+            }
+            return position;
         }
 
         // This can be used to find new title screen (lol) logo animation lengths
