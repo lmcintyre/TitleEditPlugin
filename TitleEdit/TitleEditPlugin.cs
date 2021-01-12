@@ -81,8 +81,8 @@ namespace TitleEdit
         private TitleEditMenuVAlign _vAlign = TitleEditMenuVAlign.Default;
         private TitleEditMenuHAlign _hAlign = TitleEditMenuHAlign.Default;
         private TitleEditMenuHAlign _textAlign = TitleEditMenuHAlign.Default;
-        private float _vInset = 0.025f;
-        private float _hInset = 0.5f;
+        private float _vInset = 0.0f;
+        private float _hInset = 0.0f;
 
         private Dictionary<uint, TerritoryType> _territoryPaths;
         private Dictionary<uint, string> _weathers;
@@ -496,7 +496,7 @@ namespace TitleEdit
                 
                 ImGui.Text("Menu Text Alignment: ");
                 ImGui.SameLine();
-                if (ImGui.BeginCombo("##newhalign", _textAlign.ToString())) {
+                if (ImGui.BeginCombo("##newtextalign", _textAlign.ToString())) {
                     if (ImGui.Selectable(TitleEditMenuHAlign.Default.ToString(), _textAlign == TitleEditMenuHAlign.Default)) _textAlign = TitleEditMenuHAlign.Default;
                     if (ImGui.Selectable(TitleEditMenuHAlign.Left.ToString(), _textAlign == TitleEditMenuHAlign.Left)) _textAlign = TitleEditMenuHAlign.Left;
                     if (ImGui.Selectable(TitleEditMenuHAlign.Center.ToString(), _textAlign == TitleEditMenuHAlign.Center)) _textAlign = TitleEditMenuHAlign.Center;
