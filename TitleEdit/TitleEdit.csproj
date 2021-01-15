@@ -160,6 +160,9 @@
         <Content Include="titlescreens\TE_Ishgard.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
+        <Content Include="titlescreens\TE_Limsa Lominsa.json">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
         <Content Include="titlescreens\TE_Reisen Temple.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>

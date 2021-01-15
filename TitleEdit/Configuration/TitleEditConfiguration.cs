@@ -19,6 +19,7 @@ namespace TitleEdit
         public string SelectedTitleFileName { get; set; } = "Shadowbringers";
         public string SelectedLogoName { get; set; } = "Shadowbringers";
         public bool DisplayTitleLogo { get; set; } = true;
+        public bool DisplayVersionText { get; set; } = false;
         public OverrideSetting Override { get; set; } = OverrideSetting.UseIfLogoUnspecified;
         public bool DebugLogging { get; set; }
 

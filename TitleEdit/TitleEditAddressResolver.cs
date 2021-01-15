@@ -19,6 +19,8 @@ namespace TitleEdit
 
         public static IntPtr LobbyCamera => CameraBase == IntPtr.Zero ? IntPtr.Zero : Marshal.ReadIntPtr(CameraBase, 16);
 
+        public static IntPtr WeatherPtr => Marshal.ReadIntPtr(WeatherPtrBase) + 0x27;
+
         // public static IntPtr LobbyCamera { get; private set; }
         // public static IntPtr RenderCamera { get; private set; }
         public static IntPtr LoadLogoResource { get; private set; }
@@ -27,7 +29,7 @@ namespace TitleEdit
         public static IntPtr FixOn { get; private set; }
         public static IntPtr PlayMusic { get; private set; }
         public static IntPtr BgmControl { get; private set; }
-        public static IntPtr WeatherPtr { get; private set; }
+        public static IntPtr WeatherPtrBase { get; private set; }
         public static IntPtr AtkUnitBaseSetPosition { get; private set; }
         public static IntPtr GameWindowSize { get; private set; }
 
@@ -41,8 +43,7 @@ namespace TitleEdit
             FixOn = sig.ScanText("C6 81 ?? ?? ?? ?? ?? 8B 02 89 41 60");
             PlayMusic = sig.ScanText("E8 ?? ?? ?? ?? 48 89 47 18 89 5F 20");
             BgmControl = sig.GetStaticAddressFromSig("48 8B 05 ?? ?? ?? ?? 48 85 C0 74 42 83 78 08 0A", 3);
-            WeatherPtr = sig.GetStaticAddressFromSig("40 55 41 56 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 20 48 8B 15 ?? ?? ?? ?? 4C 8B F1 48 0F BE 42 ?? 85 C0 78 05 83 F8 20 72 0E", 0x25);
-            WeatherPtr = Marshal.ReadIntPtr(WeatherPtr) + 0x27;
+            WeatherPtrBase = sig.GetStaticAddressFromSig("40 55 41 56 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 20 48 8B 15 ?? ?? ?? ?? 4C 8B F1 48 0F BE 42 ?? 85 C0 78 05 83 F8 20 72 0E", 0x25);
             AtkUnitBaseSetPosition = sig.ScanText("4C 8B 89 ?? ?? ?? ?? 41 0F BF C0");
             GameWindowSize = sig.GetStaticAddressFromSig("48 8B 44 24 ?? 48 89 05 ?? ?? ?? ?? EB 07");
         }

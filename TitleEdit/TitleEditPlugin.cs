@@ -49,7 +49,7 @@ namespace TitleEdit
         private bool _fileWasCreatedRecently;
         private ushort _lastTerritoryId;
         private ushort[] _territoryWeathers;
-        private float _widestScreenName = 0f;
+        private float _widestScreenName;
 
         // Import values
         private TitleEditScreen _importExistsScreen;
@@ -65,7 +65,7 @@ namespace TitleEdit
         private bool _nameEmpty = true;
         private string _titleScreenSavePath = "";
         private int _selectedLogoIndexCreate = 5;
-        private bool _selectedLogoVisibleCreate;
+        private bool _selectedLogoVisibleCreate = true;
         private string _customTsName = "";
         private float _fovY = 1f;
         private int _inputIntWeatherId;
@@ -76,12 +76,12 @@ namespace TitleEdit
         private int _tsTimeOffset;
         private int _selectedBgmId;
         private string _terriPath = "";
-        private ushort _lastBgmId = 0;
+        private ushort _lastBgmId;
         private string _songDescription = ""; // This is global so we don't have to do text size calc every frame
         private TitleEditMenuVAlign _vAlign = TitleEditMenuVAlign.Default;
         private TitleEditMenuHAlign _hAlign = TitleEditMenuHAlign.Default;
         private TitleEditMenuHAlign _textAlign = TitleEditMenuHAlign.Default;
-        private float _vInset = 0.0f;
+        private float _vInset;
         private float _hInset = 0.0f;
 
         private Dictionary<uint, TerritoryType> _territoryPaths;
@@ -89,6 +89,7 @@ namespace TitleEdit
 
         public void Initialize(DalamudPluginInterface pluginInterface)
         {
+            PluginLog.Log("===== T I T L E E D I T =====");
             _pluginInterface = pluginInterface;
 
             _pluginInterface.CommandManager.AddHandler("/ptitle", new CommandInfo(OnTitleEditCommand)
@@ -120,6 +121,7 @@ namespace TitleEdit
             _pluginInterface.UiBuilder.OnBuildUi += UiBuilder_OnBuildUi;
             _pluginInterface.Framework.OnUpdateEvent += CheckHotkey;
             _pluginInterface.UiBuilder.OnOpenConfigUi += (_, _) => _isImguiTitleEditOpen = true;
+            PluginLog.Log("Init complete.");
         }
         
         private void PrepareAssets()
@@ -348,11 +350,14 @@ namespace TitleEdit
                 {
                     _inputIntWeatherId = currentWeather;
                     _weatherId = currentWeather;
-                    for (int i = 0; i < _territoryWeathers.Length; i++)
+                    if (_territoryWeathers != null)
                     {
-                        if (_territoryWeathers[i] != _weatherId) continue;
-                        _selectedWeatherIndex = i;
-                        break;
+                        for (int i = 0; i < _territoryWeathers.Length; i++)
+                        {
+                            if (_territoryWeathers[i] != _weatherId) continue;
+                            _selectedWeatherIndex = i;
+                            break;
+                        }    
                     }
                 }
                 ImGui.Text("Title zone weather:");
@@ -827,7 +832,7 @@ namespace TitleEdit
                 _songDescription = songDescription;
             else
             {
-                string tmpDesc = "";
+                string tmpDesc;
                 int substring = songDescription.Length;
                 do
                 {
@@ -899,6 +904,14 @@ namespace TitleEdit
             bool debugLogging = _configuration.DebugLogging;
             if (ImGui.Checkbox("Enable debug logging", ref debugLogging))
                 _configuration.DebugLogging = debugLogging;
+            
+            bool displayVersion = _configuration.DisplayVersionText;
+            if (ImGui.Checkbox("Show FFXIV version text on title screen", ref displayVersion))
+            {
+                _configuration.DisplayVersionText = displayVersion;
+                _titleEdit.SetRevisionStringVisibility(displayVersion);
+            }
+                
 
             ImGui.EndChild();
 

@@ -33,6 +33,21 @@ namespace TitleEdit
 
         // The size of the BGMControl object
         private const int ControlSize = 88;
+        private const int BaseHOffset = 46;
+        private const int BaseVOffset = 27;
+        private const int MenuWidth = 600;
+        private const int MenuHeight = 178;
+        // private const int RevisionWidth = 300; // fake
+        private const int RealRevisionWidth = 915; // not fake
+        private const int RevisionHeight = 26;
+        private const int RightsWidth = 1000;
+        private const int RightsHeight = 26;
+
+        /*
+         * Menu    760, 955 | 600, 178
+            Rights 560, 1215 | 1000, 26
+            Rev    53, 32 | 300, 26
+         */
 
         private readonly DalamudPluginInterface _pi;
         private readonly TitleEditConfiguration _configuration;
@@ -66,7 +81,7 @@ namespace TitleEdit
             BgmPath = "music/ex3/BGM_EX3_System_Title.scd"
         };
 
-        private void RefreshCurrentTitleEditScreen()
+        public void RefreshCurrentTitleEditScreen()
         {
             var files = Directory.GetFiles(_titleScreenBasePath);
             var toLoad = _configuration.SelectedTitleFileName;
@@ -111,12 +126,12 @@ namespace TitleEdit
 
         public TitleEdit(DalamudPluginInterface pi, TitleEditConfiguration configuration, string screenDir)
         {
+            PluginLog.Log("TitleEdit hook init");
             _pi = pi;
             _configuration = configuration;
 
             TitleEditAddressResolver.Setup64Bit(pi.TargetModuleScanner);
 
-            PluginLog.Log("===== T I T L E E D I T =====");
             _titleScreenBasePath = screenDir;
 
             _createSceneHook = new Hook<OnCreateScene>(TitleEditAddressResolver.CreateScene, new OnCreateScene(HandleCreateScene), this);
@@ -126,6 +141,8 @@ namespace TitleEdit
             _setAddonPositionHook = new Hook<SetAddonPosition>(TitleEditAddressResolver.AtkUnitBaseSetPosition, new SetAddonPosition(HandleSetAddonPosition), this);
 
             _setTime = Marshal.GetDelegateForFunctionPointer<SetTimePrototype>(TitleEditAddressResolver.SetTime);
+            RefreshCurrentTitleEditScreen();
+            PluginLog.Log("TitleEdit hook init finished");
         }
 
         private int HandleCreateScene(string p1, uint p2, IntPtr p3, uint p4, IntPtr p5, int p6, uint p7)
@@ -381,14 +398,14 @@ namespace TitleEdit
             });
         }
 
-        public void EnableTitleLogo()
+        private void SetVisibleFlag(string addonName, bool state)
         {
             int logoResNode1Offset = 200;
             int logoResNode2Offset = 56;
             int logoResNodeFlagOffset = 0x9E;
             ushort visibleFlag = 0x10;
 
-            IntPtr flag = _pi.Framework.Gui.GetUiObjectByName("_TitleLogo", 1);
+            IntPtr flag = _pi.Framework.Gui.GetUiObjectByName(addonName, 1);
             if (flag == IntPtr.Zero) return;
             flag = Marshal.ReadIntPtr(flag, logoResNode1Offset);
             if (flag == IntPtr.Zero) return;
@@ -399,8 +416,60 @@ namespace TitleEdit
             unsafe
             {
                 ushort flagVal = *(ushort*) flag.ToPointer();
-                *(ushort*) flag.ToPointer() = (ushort) (flagVal | visibleFlag);
+                if (state)
+                    *(ushort*) flag.ToPointer() = (ushort) (flagVal | visibleFlag);
+                else
+                    *(ushort*) flag.ToPointer() = (ushort) (flagVal & ~visibleFlag);
             }
+        }
+
+        private void SetAlpha(string addonName, byte alpha)
+        {
+            int logoResNode1Offset = 200;
+            int logoResNode2Offset = 56;
+            int logoResNodeAlphaOffset = 0x73;
+
+            IntPtr alphaPtr = _pi.Framework.Gui.GetUiObjectByName(addonName, 1);
+            if (alphaPtr == IntPtr.Zero) return;
+            alphaPtr = Marshal.ReadIntPtr(alphaPtr, logoResNode1Offset);
+            if (alphaPtr == IntPtr.Zero) return;
+            alphaPtr = Marshal.ReadIntPtr(alphaPtr, logoResNode2Offset);
+            if (alphaPtr == IntPtr.Zero) return;
+            alphaPtr += logoResNodeAlphaOffset;
+
+            Marshal.WriteByte(alphaPtr, alpha);
+        }
+
+        public void EnableTitleLogo()
+        {
+            SetVisibleFlag("_TitleLogo", true);
+        }
+
+        public void SetRevisionStringVisibility(bool state)
+        {
+            // SetVisibleFlag("_TitleRevision", state);
+            byte alpha = state ? 255 : 0;
+            // SetAlpha("_TitleRevision", alpha);
+            Task.Run(() =>
+            {
+                // I didn't want to force this, but here we are
+                Stopwatch sw = new Stopwatch();
+                sw.Start();
+                while (sw.ElapsedMilliseconds < 300)
+                    SetAlpha("_TitleRevision", alpha);
+            });
+
+            var addonRights = _pi.Framework.Gui.GetAddonByName("_TitleRights", 1);
+            if (addonRights.Address == IntPtr.Zero)
+                return;
+            var rightsPos = PositionRights(addonRights.X, addonRights.Y);
+            _setAddonPositionHook.Original(addonRights.Address, rightsPos.x, rightsPos.y);
+            
+            var addonMenu = _pi.Framework.Gui.GetAddonByName("_TitleMenu", 1);
+            if (addonMenu.Address == IntPtr.Zero)
+                return;
+            var menuPos = PositionMenu(addonMenu.X, addonMenu.Y);
+            _setAddonPositionHook.Original(addonMenu.Address, menuPos.x, menuPos.y);
         }
 
         public ushort GetSong()
@@ -438,7 +507,7 @@ namespace TitleEdit
 
             return currentSong;
         }
-        
+
         private float[] FloatArrayFromVector3(Vector3 floats)
         {
             float[] ret = new float[3];
@@ -447,69 +516,229 @@ namespace TitleEdit
             ret[2] = floats.Z;
             return ret;
         }
-        
-        private IntPtr HandleSetAddonPosition(IntPtr self, short x, short y) {
-            if (_currentScreen != null && Marshal.PtrToStringAnsi(self + 8) == "_TitleMenu") {
-                var position = PositionMenu(_currentScreen);
-                if (position != null) return _setAddonPositionHook.Original(self, position.Value.x ?? x, position.Value.y ?? y);
+
+        private IntPtr HandleSetAddonPosition(IntPtr self, short x, short y)
+        {
+            if (Marshal.PtrToStringAnsi(self + 8) == "_TitleRevision")
+            {
+                PluginLog.Log("Positioning revision...");
+                var position = PositionRevision(x, y);
+                SetRevisionStringVisibility(_configuration.DisplayVersionText);
+                return _setAddonPositionHook.Original(self, position.x, position.y);
             }
+
+            if (Marshal.PtrToStringAnsi(self + 8) == "_TitleRights")
+            {
+                var position = PositionRights(x, y);
+                return _setAddonPositionHook.Original(self, position.x, position.y);
+            }
+
+            if (Marshal.PtrToStringAnsi(self + 8) == "_TitleMenu")
+            {
+                var position = PositionMenu(x, y);
+                return _setAddonPositionHook.Original(self, position.x, position.y);
+            }
+
             return _setAddonPositionHook.Original(self, x, y);
         }
-        
-        private (short? x, short? y)? PositionMenu(TitleEditScreen screen) {
 
-            var addon = _pi.Framework.Gui.GetAddonByName("_TitleMenu", 1);
-            if (addon == null) return null;
-            
-            (short? x, short? y) position = (null, null);
+        private (short x, short y) PositionMenu(short x, short y)
+        {
+            (short x, short y) position = (x, y);
 
             var gameWindowWidth = Marshal.ReadInt16(TitleEditAddressResolver.GameWindowSize);
             var gameWindowHeight = Marshal.ReadInt16(TitleEditAddressResolver.GameWindowSize, 4);
 
-            var hInset = gameWindowWidth * screen.HInset;
-            var vInset = gameWindowWidth * screen.VInset;
-            
-            
-            position.y = screen.VAlign switch {
-                TitleEditMenuVAlign.Top => (short) vInset,
-                TitleEditMenuVAlign.Center => (short) ((gameWindowHeight / 2f) - (addon.Height / 2)),
-                TitleEditMenuVAlign.Bottom => (short) (gameWindowHeight - addon.Height - vInset),
-                _ => null
+            var hInset = (short) (gameWindowWidth * _currentScreen.HInset);
+            var vInset = (short) (gameWindowWidth * _currentScreen.VInset);
+
+            position.x = _currentScreen.HAlign switch
+            {
+                TitleEditMenuHAlign.Left => hInset,
+                TitleEditMenuHAlign.Right => (short) (gameWindowWidth - MenuWidth - hInset),
+                _ => (short) (gameWindowWidth / 2f - MenuWidth / 2f + hInset)
             };
             
-            position.x = screen.HAlign switch {
-                TitleEditMenuHAlign.Left => (short) hInset,
-                TitleEditMenuHAlign.Center => (short) ((gameWindowWidth / 2f) - (addon.Width / 2)),
-                TitleEditMenuHAlign.Right => (short) (Marshal.ReadInt16(TitleEditAddressResolver.GameWindowSize, 0) - addon.Width - hInset),
-                _ => null
+            var effectiveRevisionHeight = _configuration.DisplayVersionText ? RevisionHeight : 0;
+
+            var addonRightsY = _currentScreen.VAlign switch
+            {
+                TitleEditMenuVAlign.Top => BaseVOffset + effectiveRevisionHeight,
+                _ => (short) (gameWindowHeight - RightsHeight - effectiveRevisionHeight)
             };
 
-            if (screen.TextAlign != TitleEditMenuHAlign.Default) {
-                var nodeList = Marshal.ReadIntPtr(addon.Address, 0x78);
-                if (nodeList != IntPtr.Zero) {
-                    var nodeListCount = (ushort) Marshal.ReadInt16(addon.Address, 0x6A);
-                    for (var i = 4; i < nodeListCount; i++) {
-                        var buttonComponentNode = Marshal.ReadIntPtr(nodeList, i * 8);
-                        if (buttonComponentNode == IntPtr.Zero) continue;
-                        var buttonComponent = Marshal.ReadIntPtr(buttonComponentNode, 0xA8);
-                        if (buttonComponent == IntPtr.Zero) continue;
-                        var bNodeList = Marshal.ReadIntPtr(buttonComponent, 0x58);
-                        if (bNodeList == IntPtr.Zero) continue;
-                        var bNodeListCount = (ushort) Marshal.ReadInt16(buttonComponent, 0x4A);
-                        if (bNodeListCount < 5) continue;
-                        var textNode = Marshal.ReadIntPtr(bNodeList, 32);
-                        if (textNode == IntPtr.Zero) continue;
-                        var alignment = screen.TextAlign switch {
-                            TitleEditMenuHAlign.Left => (byte) 0x13,
-                            TitleEditMenuHAlign.Right => (byte) 0x15,
-                            _ => (byte) 0x14,
-                        };
-                        Marshal.WriteByte(textNode, 0x14C, alignment);
-                    }
-                }
-            }
+            position.y = _currentScreen.VAlign switch
+            {
+                TitleEditMenuVAlign.Top => (short) (vInset + addonRightsY + RightsHeight),
+                TitleEditMenuVAlign.Bottom => (short) (addonRightsY - MenuHeight - vInset),
+                TitleEditMenuVAlign.Default => position.y,
+                _ => (short) (gameWindowHeight / 2f - MenuHeight / 2f + vInset)
+            };
+
+            AlignMenuButtons();
+
             return position;
         }
+
+        private void AlignMenuButtons()
+        {
+            var addonMenu = _pi.Framework.Gui.GetAddonByName("_TitleMenu", 1);
+            var nodeList = Marshal.ReadIntPtr(addonMenu.Address, 0x78);
+            if (nodeList != IntPtr.Zero)
+            {
+                var nodeListCount = (ushort) Marshal.ReadInt16(addonMenu.Address, 0x6A);
+                for (var i = 4; i < nodeListCount; i++)
+                {
+                    var buttonComponentNode = Marshal.ReadIntPtr(nodeList, i * 8);
+                    if (buttonComponentNode == IntPtr.Zero) continue;
+                    var buttonComponent = Marshal.ReadIntPtr(buttonComponentNode, 0xA8);
+                    if (buttonComponent == IntPtr.Zero) continue;
+                    var bNodeList = Marshal.ReadIntPtr(buttonComponent, 0x58);
+                    if (bNodeList == IntPtr.Zero) continue;
+                    var bNodeListCount = (ushort) Marshal.ReadInt16(buttonComponent, 0x4A);
+                    if (bNodeListCount < 5) continue;
+                    var textNode = Marshal.ReadIntPtr(bNodeList, 32);
+                    if (textNode == IntPtr.Zero) continue;
+                    var alignment = _currentScreen.TextAlign switch
+                    {
+                        TitleEditMenuHAlign.Left => (byte) 0x13,
+                        TitleEditMenuHAlign.Right => (byte) 0x15,
+                        _ => (byte) 0x14,
+                    };
+                    Marshal.WriteByte(textNode, 0x14C, alignment);
+                }
+            }
+        }
+
+        private (short x, short y) PositionRights(short x, short y)
+        {
+            (short x, short y) position = (x, y);
+
+            var gameWindowWidth = Marshal.ReadInt16(TitleEditAddressResolver.GameWindowSize);
+            var gameWindowHeight = Marshal.ReadInt16(TitleEditAddressResolver.GameWindowSize, 4);
+
+            byte alignmentBits = _currentScreen.HAlign switch
+            {
+                TitleEditMenuHAlign.Left => 0x3,
+                TitleEditMenuHAlign.Right => 0x5,
+                _ => 0x4
+            };
+
+            position.x = _currentScreen.HAlign switch
+            {
+                TitleEditMenuHAlign.Left => BaseHOffset,
+                TitleEditMenuHAlign.Default => position.x,
+                TitleEditMenuHAlign.Center => (short) (gameWindowWidth / 2f - RightsWidth / 2f),
+                _ => (short) (gameWindowWidth - BaseHOffset - RightsWidth)
+            };
+
+            var effectiveRevisionHeight = _configuration.DisplayVersionText ? RevisionHeight : 0;
+
+            position.y = _currentScreen.VAlign switch
+            {
+                TitleEditMenuVAlign.Top => (short) (BaseVOffset + effectiveRevisionHeight),
+                TitleEditMenuVAlign.Default => position.y,
+                _ => (short) (gameWindowHeight - RightsHeight - effectiveRevisionHeight)
+            };
+
+            var addonRights = _pi.Framework.Gui.GetAddonByName("_TitleRights", 1);
+
+            var resNode1 = Marshal.ReadIntPtr(addonRights.Address, 200);
+            if (resNode1 == IntPtr.Zero) return (x, y);
+            var resNode2 = Marshal.ReadIntPtr(resNode1, 56);
+            if (resNode2 == IntPtr.Zero) return (x, y);
+            var textNode = Marshal.ReadIntPtr(resNode2, 56);
+            if (textNode == IntPtr.Zero) return (x, y);
+            var existingAlignmentByte = Marshal.ReadByte(textNode, 0x14C) & 0xF0;
+            Marshal.WriteByte(textNode, 0x14C, (byte) (existingAlignmentByte | alignmentBits));
+
+            return position;
+        }
+
+        private (short x, short y) PositionRevision(short x, short y)
+        {
+            (short x, short y) position = (x, y);
+
+            var gameWindowWidth = Marshal.ReadInt16(TitleEditAddressResolver.GameWindowSize);
+            var gameWindowHeight = Marshal.ReadInt16(TitleEditAddressResolver.GameWindowSize, 4);
+
+            byte alignmentBits = _currentScreen.HAlign switch
+            {
+                TitleEditMenuHAlign.Center => 0x5,
+                TitleEditMenuHAlign.Right => 0x5,
+                _ => 0x3
+            };
+
+            position.x = _currentScreen.HAlign switch
+            {
+                TitleEditMenuHAlign.Left => BaseHOffset,
+                TitleEditMenuHAlign.Default => position.x,
+                TitleEditMenuHAlign.Center => (short) (gameWindowWidth / 2f + RealRevisionWidth / 2f),
+                _ => (short) (gameWindowWidth - BaseHOffset)
+            };
+
+            position.y = _currentScreen.VAlign switch
+            {
+                TitleEditMenuVAlign.Top => BaseVOffset,
+                TitleEditMenuVAlign.Default => position.y,
+                _ => (short) (gameWindowHeight - BaseVOffset)
+            };
+
+            var addonVersion = _pi.Framework.Gui.GetAddonByName("_TitleRevision", 1);
+
+            var resNode1 = Marshal.ReadIntPtr(addonVersion.Address, 200);
+            if (resNode1 == IntPtr.Zero) return (x, y);
+            var resNode2 = Marshal.ReadIntPtr(resNode1, 56);
+            if (resNode2 == IntPtr.Zero) return (x, y);
+            var textNode = Marshal.ReadIntPtr(resNode2, 56);
+            if (textNode == IntPtr.Zero) return (x, y);
+            var existingAlignmentByte = Marshal.ReadByte(textNode, 0x14C) & 0xF0;
+            Marshal.WriteByte(textNode, 0x14C, (byte) (existingAlignmentByte | alignmentBits));
+
+            return position;
+        }
+
+        // I enjoy this code. So it's staying here
+        // private (short x, short y) PositionRights(short x, short y) {
+        //
+        //     (short x, short y) position = (x, y);
+        //     var addonRights = _pi.Framework.Gui.GetAddonByName("_TitleRights", 1);
+        //     if (addonRights == null) return position;
+        //     var addonVersion = _pi.Framework.Gui.GetAddonByName("_TitleRevision", 1);
+        //     if (addonVersion == null) return position;
+        //     
+        //     var gameWindowWidth = Marshal.ReadInt16(TitleEditAddressResolver.GameWindowSize);
+        //     // var gameWindowHeight = Marshal.ReadInt16(TitleEditAddressResolver.GameWindowSize, 4);
+        //
+        //     var borderOffset = addonVersion.X;
+        //
+        //     bool hasEnoughWidth = gameWindowWidth >= addonRights.Width + borderOffset + addonVersion.Width + 100;
+        //     byte alignmentBits = 0;
+        //
+        //     if (hasEnoughWidth)
+        //     {
+        //         position.x = (short) (gameWindowWidth - addonRights.Width - borderOffset);
+        //         position.y = addonVersion.Y;
+        //         alignmentBits = 0x5;
+        //     }
+        //     else
+        //     {
+        //         position.x = addonVersion.X;
+        //         position.y = (short) (addonVersion.Y + addonVersion.Height);
+        //         alignmentBits = 0x3;
+        //     }
+        //     
+        //     var resNode1 = Marshal.ReadIntPtr(addonRights.Address, 200);
+        //     if (resNode1 == IntPtr.Zero) return (x, y);
+        //     var resNode2 = Marshal.ReadIntPtr(resNode1, 56);
+        //     if (resNode2 == IntPtr.Zero) return (x, y);
+        //     var textNode = Marshal.ReadIntPtr(resNode2, 56);
+        //     if (textNode == IntPtr.Zero) return (x, y);
+        //     var existingAlignmentByte = Marshal.ReadByte(textNode, 0x14C) & 0xF0;
+        //     Marshal.WriteByte(textNode, 0x14C, (byte) (existingAlignmentByte | alignmentBits));
+        //
+        //     return position;
+        // }
 
         // This can be used to find new title screen (lol) logo animation lengths
         // public void LogLogoVisible()
@@ -555,7 +784,7 @@ namespace TitleEdit
 #if !DEBUG
             if (_configuration.DebugLogging)
 #endif
-                PluginLog.Log($"[dbg] {s}");
+            PluginLog.Log($"[dbg] {s}");
         }
     }
 }
