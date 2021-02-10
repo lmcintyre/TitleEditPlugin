@@ -95,7 +95,7 @@ namespace TitleEdit
             _configuration = pluginInterface.GetPluginConfig() as TitleEditConfiguration ?? new TitleEditConfiguration();
             _configuration.Initialize(pluginInterface);
 
-            _titleScreenFolder = Path.Combine(GetPluginConfigFolder(), "TitleEdit");
+            _titleScreenFolder = _pluginInterface.GetPluginConfigDirectory();
             if (!Directory.Exists(_titleScreenFolder))
                 Directory.CreateDirectory(_titleScreenFolder);
             PrepareAssets();
@@ -913,16 +913,6 @@ namespace TitleEdit
             ImGui.Text("ff-meli - BGM now playing code");
             ImGui.Text("goat - being a caprine individual");
             ImGui.EndTabItem();
-        }
-        
-        private string GetPluginConfigFolder()
-        {
-            var dalamudAssembly = Assembly.GetAssembly(typeof(DalamudPluginInterface)).Location;
-            var parent = Path.GetDirectoryName(dalamudAssembly);
-            parent = Path.GetDirectoryName(parent);
-            parent = Path.GetDirectoryName(parent);
-            var configFolder = Path.Combine(parent, "pluginConfigs");
-            return configFolder;
         }
 
         private void UpdateConfig()

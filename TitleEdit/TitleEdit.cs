@@ -62,7 +62,7 @@ namespace TitleEdit
             BgmPath = "music/ex3/BGM_EX3_System_Title.scd"
         };
 
-        private void RefreshCurrentTitleEditScreen()
+        internal void RefreshCurrentTitleEditScreen()
         {
             var files = Directory.GetFiles(_titleScreenBasePath);
             var toLoad = _configuration.SelectedTitleFileName;
