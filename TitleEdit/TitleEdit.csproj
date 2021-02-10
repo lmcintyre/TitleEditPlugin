@@ -1,66 +1,63 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-    <Import Project="..\packages\DalamudPackager.1.0.1\build\DalamudPackager.props" Condition="Exists('..\packages\DalamudPackager.1.0.1\build\DalamudPackager.props')" />
-    <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <Import Project="..\packages\DalamudPackager.1.0.1\build\DalamudPackager.props" Condition="Exists('..\packages\DalamudPackager.1.0.1\build\DalamudPackager.props')"/>
+
     <PropertyGroup>
-        <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-        <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-        <ProjectGuid>{619DF476-7225-4783-95A5-D29A8816EE66}</ProjectGuid>
-        <OutputType>Library</OutputType>
-        <AppDesignerFolder>Properties</AppDesignerFolder>
-        <RootNamespace>TitleEdit</RootNamespace>
-        <AssemblyName>TitleEdit</AssemblyName>
-        <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
-        <FileAlignment>512</FileAlignment>
-        <Deterministic>true</Deterministic>
-        <LangVersion>latest</LangVersion>
-    </PropertyGroup>
-    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-        <DebugSymbols>true</DebugSymbols>
-        <DebugType>full</DebugType>
-        <Optimize>false</Optimize>
-        <OutputPath>bin\Debug\</OutputPath>
-        <DefineConstants>DEBUG;TRACE</DefineConstants>
-        <ErrorReport>prompt</ErrorReport>
-        <WarningLevel>4</WarningLevel>
+        <TargetFramework>net472</TargetFramework>
+        <LangVersion>preview</LangVersion>
+        <AssemblyTitle>TitleEdit</AssemblyTitle>
+        <Product>TitleEdit</Product>
+        <Description>This plugin allows for the title screen to be changed to any expac's title screen.</Description>
+        <Copyright>Copyleft attick 2020 baybeeee</Copyright>
+        <OutputPath>bin\$(Configuration)\</OutputPath>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+        <DebugType>full</DebugType>
+        <DefineConstants>DEBUG;TRACE</DefineConstants>
+    </PropertyGroup>
+
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
         <DebugType>pdbonly</DebugType>
-        <Optimize>true</Optimize>
-        <OutputPath>bin\Release\</OutputPath>
-        <DefineConstants>TRACE</DefineConstants>
-        <ErrorReport>prompt</ErrorReport>
-        <WarningLevel>4</WarningLevel>
-        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     </PropertyGroup>
+
     <ItemGroup>
-        <Reference Include="Dalamud, Version=5.2.3.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\..\..\AppData\Roaming\XIVLauncher\addon\Hooks\5.2.3.0\Dalamud.dll</HintPath>
-          <Private>False</Private>
+        <Reference Include="Dalamud">
+            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\Dalamud.dll</HintPath>
+            <Private>False</Private>
         </Reference>
-        <Reference Include="ImGui.NET, Version=1.72.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\..\..\AppData\Roaming\XIVLauncher\addon\Hooks\5.2.3.0\ImGui.NET.dll</HintPath>
+        <Reference Include="ImGui.NET">
+            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\ImGui.NET.dll</HintPath>
+            <Private>False</Private>
         </Reference>
-        <Reference Include="ImGuiScene, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\..\..\AppData\Roaming\XIVLauncher\addon\Hooks\5.2.3.0\ImGuiScene.dll</HintPath>
+        <Reference Include="ImGuiScene">
+            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\ImGuiScene.dll</HintPath>
+            <Private>False</Private>
         </Reference>
-        <Reference Include="Lumina, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\..\..\AppData\Roaming\XIVLauncher\addon\Hooks\5.2.3.0\Lumina.dll</HintPath>
+        <Reference Include="Lumina">
+            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\Lumina.dll</HintPath>
+            <Private>False</Private>
         </Reference>
-        <Reference Include="Lumina.Excel, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
-          <HintPath>..\..\..\..\AppData\Roaming\XIVLauncher\addon\Hooks\5.2.3.0\Lumina.Excel.dll</HintPath>
+        <Reference Include="Lumina.Excel">
+            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\Lumina.Excel.dll</HintPath>
+            <Private>False</Private>
         </Reference>
-        <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed">
-          <HintPath>..\..\..\..\AppData\Roaming\XIVLauncher\addon\Hooks\5.2.3.0\Newtonsoft.Json.dll</HintPath>
+        <Reference Include="Newtonsoft.Json">
+            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\Newtonsoft.Json.dll</HintPath>
+            <Private>False</Private>
         </Reference>
-        <Reference Include="SharpDX, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1">
-          <HintPath>..\..\..\..\AppData\Roaming\XIVLauncher\addon\Hooks\5.2.3.0\SharpDX.dll</HintPath>
+        <Reference Include="SharpDX">
+            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\SharpDX.dll</HintPath>
+            <Private>False</Private>
         </Reference>
-        <Reference Include="SharpDX.Mathematics, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1">
-          <HintPath>..\..\..\..\AppData\Roaming\XIVLauncher\addon\Hooks\5.2.3.0\SharpDX.Mathematics.dll</HintPath>
+        <Reference Include="SharpDX.Mathematics">
+            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\SharpDX.Mathematics.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="System.Numerics.Vectors">
+            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\System.Numerics.Vectors.dll</HintPath>
+            <Private>false</Private>
         </Reference>
         <Reference Include="System">
             <Private>false</Private>
@@ -68,7 +65,9 @@
         <Reference Include="System.Core">
             <Private>false</Private>
         </Reference>
-        <Reference Include="System.Numerics" />
+        <Reference Include="System.Numerics">
+            <Private>false</Private>
+        </Reference>
         <Reference Include="System.Xml.Linq">
             <Private>false</Private>
         </Reference>
@@ -81,36 +80,19 @@
         <Reference Include="System.Data">
             <Private>false</Private>
         </Reference>
-        <Reference Include="System.Net.Http" />
-        <Reference Include="System.Xml" />
-    </ItemGroup>
-    <ItemGroup>
-        <Compile Include="BgmSheetManager.cs" />
-        <Compile Include="Configuration\TitleEditConfiguration.cs" />
-        <Compile Include="LvbFile.cs" />
-        <Compile Include="TitleEdit.cs" />
-        <Compile Include="TitleEditAddressResolver.cs" />
-        <Compile Include="TitleEditDebug.cs" />
-        <Compile Include="TitleEditPlugin.cs" />
-        <Compile Include="Properties\AssemblyInfo.cs" />
-        <Compile Include="TitleEditScreen.cs" />
-    </ItemGroup>
-    <ItemGroup>
-        <PackageReference Include="DalamudPackager">
-            <version>1.1.0</version>
-        </PackageReference>
+        <Reference Include="System.Xml"/>
     </ItemGroup>
     <ItemGroup>
         <Content Include="bgm.csv">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
-        <Content Include="DalamudPackager.targets" />
-        <Content Include="TitleEdit.yaml" />
+        <Content Include="DalamudPackager.targets"/>
+        <Content Include="TitleEdit.yaml"/>
         <Content Include="titlescreens\A Realm Reborn.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <Content Include="titlescreens\Heavensward.json">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <Content Include="titlescreens\Shadowbringers.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -140,13 +122,13 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <Content Include="titlescreens\TE_Hell's Kier.json">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <Content Include="titlescreens\TE_Ishgard.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <Content Include="titlescreens\TE_Limsa Lominsa.json">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <Content Include="titlescreens\TE_Reisen Temple.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -155,18 +137,13 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <Content Include="titlescreens\TE_Titania's Forest.json">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <Content Include="titlescreens\TE_Werlyt.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
-    <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-    <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-        <PropertyGroup>
-            <ErrorText>This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them. For more information, see http://go.microsoft.com/fwlink/?LinkID=322105.The missing file is {0}.</ErrorText>
-        </PropertyGroup>
-        <Error Condition="!Exists('..\packages\DalamudPackager.1.0.1\build\DalamudPackager.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\DalamudPackager.1.0.1\build\DalamudPackager.props'))" />
-        <Error Condition="!Exists('..\packages\DalamudPackager.1.0.1\build\DalamudPackager.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\DalamudPackager.1.0.1\build\DalamudPackager.targets'))" />
-    </Target>
+    <ItemGroup>
+        <PackageReference Include="DalamudPackager" Version="1.2.0"/>
+    </ItemGroup>
 </Project>
