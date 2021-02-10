@@ -152,7 +152,7 @@ namespace TitleEdit
             _amForcingTime = false;
             _amForcingWeather = false;
 
-            if (IsLobby(p1))
+            if (IsLobby(p1) && _pi.ClientState == null  || _pi.ClientState.LocalPlayer == null)
             {
                 Log("Loading lobby and lobby fixon.");
                 var returnVal = _createSceneHook.Original(p1, p2, p3, p4, p5, p6, p7);
