@@ -223,9 +223,7 @@ namespace TitleEdit
             DrawSettings();
             DrawInformation();
             DrawCredits();
-#if DEBUG
-            TitleEditDebug.DrawDebug(_pluginInterface, _titleEdit, _weathers);
-#endif
+            
             ImGui.EndTabBar();
 
             ImGui.Spacing();
