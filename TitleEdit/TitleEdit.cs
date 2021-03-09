@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -299,9 +299,25 @@ namespace TitleEdit
                 do
                 {
                     _setTime(timeOffset);
+                    Thread.Sleep(50);
                 } while (stop.ElapsedMilliseconds < forceTime && _amForcingTime);
-
                 Log($"Done forcing time.");
+            });
+        }
+        
+        private void ForceWeather(byte weather, int forceTime)
+        {
+            _amForcingWeather = true;
+            Task.Run(() =>
+            {
+                Stopwatch stop = Stopwatch.StartNew();
+                do
+                {
+                    SetWeather(weather);
+                    Thread.Sleep(50);
+                } while (stop.ElapsedMilliseconds < forceTime && _amForcingWeather);
+                Log($"Done forcing weather.");
+                Log($"Weather is now {GetWeather()}");
             });
         }
 
@@ -322,22 +338,6 @@ namespace TitleEdit
             {
                 *(byte*) TitleEditAddressResolver.WeatherPtr = weather;
             }
-        }
-
-        private void ForceWeather(byte weather, int forceTime)
-        {
-            _amForcingWeather = true;
-            Task.Run(() =>
-            {
-                Stopwatch stop = Stopwatch.StartNew();
-                do
-                {
-                    SetWeather(weather);
-                } while (stop.ElapsedMilliseconds < forceTime && _amForcingWeather);
-
-                Log($"Done forcing weather.");
-                Log($"Weather is now {GetWeather()}");
-            });
         }
 
         // TODO: Eventually figure out how to do these without excluding free trial players
