@@ -670,7 +670,7 @@ namespace TitleEdit
             if (ImGui.CollapsingHeader("Installed Screens"))
             {
                 var width = GuiScale(_widestScreenName + 100);
-                ImGui.BeginChild("scrollingCustomList", new Vector2(width, GuiScale(150)), true, ImGuiWindowFlags.HorizontalScrollbar);
+                ImGui.BeginChild("scrollingCustomList", new Vector2(width, -1), true, ImGuiWindowFlags.HorizontalScrollbar);
                 foreach (var titleScreen in _titleScreensExport)
                 {
                     ImGui.Text(titleScreen);
@@ -692,6 +692,7 @@ namespace TitleEdit
                     }
                 }
                 ImGui.EndChild();
+                ImGui.SameLine();
                 if (ImGui.Button("Open presets folder"))
                     Process.Start(_titleScreenFolder);
             }

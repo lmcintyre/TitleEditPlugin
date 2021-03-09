@@ -298,7 +298,7 @@ namespace TitleEdit
                 do
                 {
                     SetWeather(weather);
-                    Thread.Sleep(50);
+                    Thread.Sleep(20);
                 } while (stop.ElapsedMilliseconds < forceTime && _amForcingWeather);
                 Log($"Done forcing weather.");
                 Log($"Weather is now {GetWeather()}");
@@ -437,10 +437,10 @@ namespace TitleEdit
                 // I didn't want to force this, but here we are
                 Stopwatch sw = new Stopwatch();
                 sw.Start();
-                while (sw.ElapsedMilliseconds < 500)
+                while (sw.ElapsedMilliseconds < 5000)
                 {
                     SetAlpha("_TitleRevision", alpha);
-                    Thread.Sleep(50);
+                    Thread.Sleep(250);
                 }
             });
         }
