@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Hooking;
 using Dalamud.Plugin;
