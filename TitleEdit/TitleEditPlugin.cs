@@ -218,7 +218,7 @@ namespace TitleEdit
             DrawSettings();
             DrawInformation();
             DrawCredits();
-            
+
             ImGui.EndTabBar();
 
             ImGui.Spacing();

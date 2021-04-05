@@ -1,5 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-    <Import Project="..\packages\DalamudPackager.1.0.1\build\DalamudPackager.props" Condition="Exists('..\packages\DalamudPackager.1.0.1\build\DalamudPackager.props')"/>
+    <Import Project="..\packages\DalamudPackager.1.0.1\build\DalamudPackager.props" Condition="Exists('..\packages\DalamudPackager.1.0.1\build\DalamudPackager.props')" />
 
     <PropertyGroup>
         <TargetFramework>net472</TargetFramework>
@@ -80,14 +80,14 @@
         <Reference Include="System.Data">
             <Private>false</Private>
         </Reference>
-        <Reference Include="System.Xml"/>
+        <Reference Include="System.Xml" />
     </ItemGroup>
     <ItemGroup>
         <Content Include="bgm.csv">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
-        <Content Include="DalamudPackager.targets"/>
-        <Content Include="TitleEdit.yaml"/>
+        <Content Include="DalamudPackager.targets" />
+        <Content Include="TitleEdit.yaml" />
         <Content Include="titlescreens\A Realm Reborn.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
@@ -144,6 +144,11 @@
         </Content>
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="DalamudPackager" Version="1.2.0"/>
+        <PackageReference Include="DalamudPackager" Version="1.2.1" />
+    </ItemGroup>
+    <ItemGroup>
+      <None Update="titlescreens\TE_AzysLla.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 </Project>
