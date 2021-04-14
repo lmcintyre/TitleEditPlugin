@@ -431,7 +431,7 @@ namespace TitleEdit
 
         public void SetRevisionStringVisibility(bool state)
         {
-            byte alpha = state ? 255 : 0;
+            byte alpha = state ? (byte) 255 : (byte) 0;
             Task.Run(() =>
             {
                 // I didn't want to force this, but here we are

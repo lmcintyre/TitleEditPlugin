@@ -142,13 +142,11 @@
         <Content Include="titlescreens\TE_Werlyt.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
+        <Content Include="titlescreens\TE_AzysLla.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="DalamudPackager" Version="1.2.1" />
-    </ItemGroup>
-    <ItemGroup>
-      <None Update="titlescreens\TE_AzysLla.json">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
     </ItemGroup>
 </Project>
