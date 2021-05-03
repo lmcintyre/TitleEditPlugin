@@ -136,7 +136,7 @@ namespace TitleEdit
             _amForcingTime = false;
             _amForcingWeather = false;
 
-            if (IsLobby(p1) && _pi.ClientState?.LocalPlayer == null)
+            if (IsLobby(p1))
             {
                 Log("Loading lobby and lobby fixon.");
                 var returnVal = _createSceneHook.Original(p1, p2, p3, p4, p5, p6, p7);
@@ -222,12 +222,13 @@ namespace TitleEdit
             var logo = _configuration.SelectedLogoName;
             var display = _configuration.DisplayTitleLogo;
             var over = _configuration.Override;
-            if (over == OverrideSetting.UseIfLogoUnspecified && _currentScreen.Logo != "Unspecified")
-            {
+            var visOver = _configuration.VisibilityOverride;
+            if (over == OverrideSetting.UseIfUnspecified && _currentScreen.Logo != "Unspecified")
                 logo = _currentScreen.Logo;
-                display = _currentScreen.DisplayLogo;
-            }
 
+            if (visOver == OverrideSetting.UseIfUnspecified && _currentScreen.Logo != "Unspecified")
+                display = _currentScreen.DisplayLogo;
+            
             switch (logo)
             {
                 case "A Realm Reborn":
@@ -335,7 +336,11 @@ namespace TitleEdit
 
         private bool IsLobby(string path)
         {
-            return path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
+            // In the Lobby, the loaded zone is z1c1, the Bg Selector for
+            // charamake is not visible, and the local player is null
+            return !AddonVisible("_CharaMakeBgSelector") &&
+                    _pi.ClientState?.LocalPlayer == null &&
+                   path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
         }
 
         public void DisableTitleLogo(int delay = 2001)
@@ -488,6 +493,15 @@ namespace TitleEdit
             ret[1] = floats.Y;
             ret[2] = floats.Z;
             return ret;
+        }
+
+        private bool AddonVisible(string addonName, int index = 1)
+        {
+            var addon = _pi.Framework.Gui.GetAddonByName(addonName, index);
+            var vis = addon?.Visible;
+            var value = vis ?? false;
+            Log($"{addonName} was {value}");
+            return value;
         }
         
         // This can be used to find new title screen (lol) logo animation lengths

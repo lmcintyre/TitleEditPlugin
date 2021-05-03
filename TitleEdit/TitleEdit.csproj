@@ -1,6 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-    <Import Project="..\packages\DalamudPackager.1.0.1\build\DalamudPackager.props" Condition="Exists('..\packages\DalamudPackager.1.0.1\build\DalamudPackager.props')" />
-
     <PropertyGroup>
         <TargetFramework>net472</TargetFramework>
         <LangVersion>preview</LangVersion>

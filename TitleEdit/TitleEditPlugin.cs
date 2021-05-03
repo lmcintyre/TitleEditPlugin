@@ -833,8 +833,18 @@ namespace TitleEdit
             {
                 if (ImGui.Selectable(GetOverrideSettingString(OverrideSetting.Override)))
                     _configuration.Override = OverrideSetting.Override;
-                if (ImGui.Selectable(GetOverrideSettingString(OverrideSetting.UseIfLogoUnspecified)))
-                    _configuration.Override = OverrideSetting.UseIfLogoUnspecified;
+                if (ImGui.Selectable(GetOverrideSettingString(OverrideSetting.UseIfUnspecified)))
+                    _configuration.Override = OverrideSetting.UseIfUnspecified;
+                ImGui.EndCombo();
+            }
+            
+            if (ImGui.BeginCombo("Logo visibility override", 
+                GetVisibilityOverrideSettingString(_configuration.VisibilityOverride)))
+            {
+                if (ImGui.Selectable(GetVisibilityOverrideSettingString(OverrideSetting.Override)))
+                    _configuration.VisibilityOverride = OverrideSetting.Override;
+                if (ImGui.Selectable(GetVisibilityOverrideSettingString(OverrideSetting.UseIfUnspecified)))
+                    _configuration.VisibilityOverride = OverrideSetting.UseIfUnspecified;
                 ImGui.EndCombo();
             }
 
@@ -939,7 +949,17 @@ namespace TitleEdit
             return setting switch
             {
                 OverrideSetting.Override => "Override logo from preset",
-                OverrideSetting.UseIfLogoUnspecified => "Only override if unspecified by preset",
+                OverrideSetting.UseIfUnspecified => "Only override if unspecified by preset",
+                _ => throw new ArgumentOutOfRangeException()
+            };
+        }
+        
+        private string GetVisibilityOverrideSettingString(OverrideSetting setting)
+        {
+            return setting switch
+            {
+                OverrideSetting.Override => "Override visibility from preset",
+                OverrideSetting.UseIfUnspecified => "Only override if logo is unspecified by preset",
                 _ => throw new ArgumentOutOfRangeException()
             };
         }
