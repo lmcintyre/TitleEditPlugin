@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -68,7 +69,7 @@ namespace TitleEdit
 
         internal void RefreshCurrentTitleEditScreen()
         {
-            var files = Directory.GetFiles(_titleScreenBasePath);
+            var files = Directory.GetFiles(_titleScreenBasePath).Where(file => file.EndsWith(".json")).ToArray();
             var toLoad = _configuration.SelectedTitleFileName;
 
             if (_configuration.SelectedTitleFileName == "Random")
