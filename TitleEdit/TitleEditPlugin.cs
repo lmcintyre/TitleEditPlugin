@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using Dalamud.Game;
 using Dalamud.Game.ClientState.Actors;
 using Dalamud.Game.Command;
 using Dalamud.Game.Internal;

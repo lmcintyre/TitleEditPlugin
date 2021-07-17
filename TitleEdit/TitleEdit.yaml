@@ -4,3 +4,4 @@ load_priority: 10
 description: |-
   Create, share, and shuffle custom title screens for FFXIV.
 repo_url: https://github.com/lmcintyre/TitleEditPlugin
+dalamud_api_level: 4
