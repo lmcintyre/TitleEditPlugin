@@ -29,10 +29,11 @@ namespace TitleEdit
 {
     internal class TitleEditPlugin : IDalamudPlugin
     {
-        public string Name => "Title Edit Plugin";
+        public string Name => "Title Edit";
 
         public string AssemblyLocation { get; set; } = Assembly.GetExecutingAssembly().Location;
 
+        public const string TitleEditCommand = "/titleedit";
         private const int LookAtOffset = 192;
         private const int EyesPosOffset = 144;
         private const int EorzeaTimeOffset = 0x1608;
@@ -113,10 +114,9 @@ namespace TitleEdit
             _framework = framework;
             _keyState = keyState;
 
-            _commandManager.AddHandler("/ptitle", new CommandInfo(OnTitleEditCommand)
+            _commandManager.AddHandler(TitleEditCommand, new CommandInfo(OnTitleEditCommand)
             {
-                HelpMessage = "Open a window to set the title screen version.",
-                ShowInHelp = true
+                HelpMessage = "Display the Title Edit configuration interface."
             });
 
             _configuration = pluginInterface.GetPluginConfig() as TitleEditConfiguration ?? new TitleEditConfiguration();
@@ -1010,7 +1010,7 @@ namespace TitleEdit
         public void Dispose()
         {
             _titleEdit?.Dispose();
-            _commandManager.RemoveHandler("/ptitle");
+            _commandManager.RemoveHandler(TitleEditCommand);
             _pluginInterface.Dispose();
         }
     }

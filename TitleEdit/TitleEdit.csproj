@@ -42,21 +42,24 @@
             <Private>False</Private>
         </Reference>
         <Reference Include="Newtonsoft.Json">
-          <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\Newtonsoft.Json.dll</HintPath>
+            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\Newtonsoft.Json.dll</HintPath>
+            <Private>False</Private>
         </Reference>
         <Reference Include="SharpDX.Mathematics">
-          <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\SharpDX.Mathematics.dll</HintPath>
+            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\SharpDX.Mathematics.dll</HintPath>
+            <Private>False</Private>
         </Reference>
         <Reference Include="FFXIVClientStructs">
             <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\FFXIVClientStructs.dll</HintPath>
+            <Private>False</Private>
         </Reference>
     </ItemGroup>
     <ItemGroup>
         <Content Include="bgm.csv">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
-        <Content Include="DalamudPackager.targets" />
-        <Content Include="TitleEdit.yaml" />
+        <Content Include="DalamudPackager.targets"/>
+        <Content Include="TitleEdit.yaml"/>
         <Content Include="titlescreens\A Realm Reborn.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
@@ -114,12 +117,11 @@
         <Content Include="titlescreens\TE_AzysLla.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
-        <None Remove="titlescreens\TE_Garlemald.json" />
         <Content Include="titlescreens\TE_Garlemald.json">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="DalamudPackager" Version="1.2.1" />
+        <PackageReference Include="DalamudPackager" Version="1.2.1"/>
     </ItemGroup>
 </Project>
