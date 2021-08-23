@@ -8,9 +8,3 @@ description: |-
 punchline: Create, share, and shuffle custom title screens for FFXIV.
 repo_url: https://github.com/lmcintyre/TitleEditPlugin
 dalamud_api_level: 4
-icon_url: https://raw.githubusercontent.com/lmcintyre/TitleEditPlugin/main/images/icon.png
-image_urls:
-  - https://raw.githubusercontent.com/lmcintyre/TitleEditPlugin/main/images/img1.png
-  - https://raw.githubusercontent.com/lmcintyre/TitleEditPlugin/main/images/img2.png
-  - https://raw.githubusercontent.com/lmcintyre/TitleEditPlugin/main/images/img3.png
-  - https://raw.githubusercontent.com/lmcintyre/TitleEditPlugin/main/images/img4.png
