@@ -7,8 +7,12 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Dalamud.Game;
+using Dalamud.Game.ClientState;
+using Dalamud.Game.Gui;
 using Dalamud.Hooking;
-using Dalamud.Plugin;
+using Dalamud.Logging;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 using Newtonsoft.Json;
 
 namespace TitleEdit
@@ -28,15 +32,13 @@ namespace TitleEdit
         [UnmanagedFunctionPointer(CallingConvention.ThisCall, CharSet = CharSet.Ansi)]
         private delegate IntPtr OnPlayMusic(IntPtr self, string filename, float volume, uint fadeTime);
 
-        [UnmanagedFunctionPointer(CallingConvention.ThisCall, CharSet = CharSet.Ansi)]
-        private delegate IntPtr SetAddonPosition(IntPtr self, short x, short y);
-
         private delegate void SetTimePrototype(ushort timeOffset);
 
         // The size of the BGMControl object
         private const int ControlSize = 88;
-        
-        private readonly DalamudPluginInterface _pi;
+
+        private readonly ClientState _clientState;
+        private readonly GameGui _gameGui;
         private readonly TitleEditConfiguration _configuration;
 
         private readonly Hook<OnCreateScene> _createSceneHook;
@@ -66,6 +68,33 @@ namespace TitleEdit
             WeatherId = 2,
             BgmPath = "music/ex3/BGM_EX3_System_Title.scd"
         };
+        
+        public TitleEdit(
+            SigScanner scanner,
+            ClientState clientState,
+            GameGui gameGui,
+            TitleEditConfiguration configuration,
+            string screenDir)
+        {
+            PluginLog.Log("TitleEdit hook init");
+            _clientState = clientState;
+            _gameGui = gameGui;
+            _configuration = configuration;
+
+            TitleEditAddressResolver.Setup64Bit(scanner);
+            FFXIVClientStructs.Resolver.Initialize();
+
+            _titleScreenBasePath = screenDir;
+
+            _createSceneHook = new Hook<OnCreateScene>(TitleEditAddressResolver.CreateScene, HandleCreateScene);
+            _playMusicHook = new Hook<OnPlayMusic>(TitleEditAddressResolver.PlayMusic, HandlePlayMusic);
+            _fixOnHook = new Hook<OnFixOn>(TitleEditAddressResolver.FixOn, HandleFixOn);
+            _loadLogoResourceHook = new Hook<OnLoadLogoResource>(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
+
+            _setTime = Marshal.GetDelegateForFunctionPointer<SetTimePrototype>(TitleEditAddressResolver.SetTime);
+            RefreshCurrentTitleEditScreen();
+            PluginLog.Log("TitleEdit hook init finished");
+        }
 
         internal void RefreshCurrentTitleEditScreen()
         {
@@ -108,26 +137,6 @@ namespace TitleEdit
             var contents = File.ReadAllText(path);
             _currentScreen = JsonConvert.DeserializeObject<TitleEditScreen>(contents);
             Log($"Title Edit loaded {path}");
-        }
-
-        public TitleEdit(DalamudPluginInterface pi, TitleEditConfiguration configuration, string screenDir)
-        {
-            PluginLog.Log("TitleEdit hook init");
-            _pi = pi;
-            _configuration = configuration;
-
-            TitleEditAddressResolver.Setup64Bit(pi.TargetModuleScanner);
-
-            _titleScreenBasePath = screenDir;
-
-            _createSceneHook = new Hook<OnCreateScene>(TitleEditAddressResolver.CreateScene, HandleCreateScene);
-            _playMusicHook = new Hook<OnPlayMusic>(TitleEditAddressResolver.PlayMusic, HandlePlayMusic);
-            _fixOnHook = new Hook<OnFixOn>(TitleEditAddressResolver.FixOn, HandleFixOn);
-            _loadLogoResourceHook = new Hook<OnLoadLogoResource>(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
-
-            _setTime = Marshal.GetDelegateForFunctionPointer<SetTimePrototype>(TitleEditAddressResolver.SetTime);
-            RefreshCurrentTitleEditScreen();
-            PluginLog.Log("TitleEdit hook init finished");
         }
 
         private int HandleCreateScene(string p1, uint p2, IntPtr p3, uint p4, IntPtr p5, int p6, uint p7)
@@ -335,104 +344,58 @@ namespace TitleEdit
             // path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
         }
 
-        private bool IsLobby(string path)
+        private unsafe bool IsLobby(string path)
         {
             // In the Lobby, the loaded zone is z1c1, the Bg Selector for
             // charamake is not visible, and the local player is null
-            return !AddonVisible("_CharaMakeBgSelector") &&
-                    _pi.ClientState?.LocalPlayer == null &&
+            var bgSelector = (AtkUnitBase*) _gameGui.GetAddonByName("_CharaMakeBgSelector", 1);
+
+            return bgSelector != null &&
+                   bgSelector->IsVisible &&
+                   _clientState.LocalPlayer == null &&
                    path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
         }
 
-        public void DisableTitleLogo(int delay = 2001)
+        public unsafe void DisableTitleLogo(int delay = 2001)
         {
-            int logoResNode1Offset = 200;
-            int logoResNode2Offset = 56;
-            int logoResNodeAlphaOffset = 0x73;
-            int logoResNodeFlagOffset = 0x9E;
-            ushort visibleFlag = 0x10;
-
             // If we try to set a logo's visibility too soon before it
             // finishes its animation, it will simply set itself visible again
             Task.Delay(delay).ContinueWith(_ =>
             {
                 Log($"Logo task running after {delay} delay");
-                IntPtr flag = _pi.Framework.Gui.GetUiObjectByName("_TitleLogo", 1);
-                if (flag == IntPtr.Zero) return;
-                flag = Marshal.ReadIntPtr(flag, logoResNode1Offset);
-                if (flag == IntPtr.Zero) return;
-                flag = Marshal.ReadIntPtr(flag, logoResNode2Offset);
-                if (flag == IntPtr.Zero) return;
-                var alpha = flag + logoResNodeAlphaOffset;
-                flag += logoResNodeFlagOffset;
+                var addon = (AtkUnitBase*) _gameGui.GetAddonByName("_TitleLogo", 1);
+                if (addon == null || addon->UldManager.NodeListCount < 2) return;
+                var node = addon->UldManager.NodeList[1];
+                if (node == null) return;
 
-                unsafe
+                // The user has probably seen the logo by now, so don't abruptly hide it - be graceful
+                if (delay > 1000)
                 {
-                    // The user has probably seen the logo by now, so don't abruptly hide it - be graceful
-                    if (delay > 1000)
+                    int fadeTime = 500;
+                    var sw = Stopwatch.StartNew();
+                    do
                     {
-                        int fadeTime = 500;
-                        Stopwatch stop = Stopwatch.StartNew();
-                        do
-                        {
-                            int newAlpha = (int) ((fadeTime - stop.ElapsedMilliseconds) / (float) fadeTime * 255);
-                            *(byte*) alpha.ToPointer() = (byte) newAlpha;
-                        } while (stop.ElapsedMilliseconds < fadeTime);
-                    }
+                        if (node == null) continue;
+                        byte newAlpha = (byte) ((fadeTime - sw.ElapsedMilliseconds) / (float) fadeTime * 255);
+                        node->Color.A = newAlpha;
+                    } while (sw.ElapsedMilliseconds < fadeTime);
 
                     // We still want to hide it at the end, though - reset alpha here
-                    ushort flagVal = *(ushort*) flag.ToPointer();
-                    *(ushort*) flag.ToPointer() = (ushort) (flagVal & ~visibleFlag);
-                    *(byte*) alpha.ToPointer() = 255;
+                    if (node == null) return;
+                    node->ToggleVisibility(false);
+                    node->Color.A = 255;
                 }
             });
         }
 
-        private void SetVisibleFlag(string addonName, bool state)
+        public unsafe void EnableTitleLogo()
         {
-            int logoResNode1Offset = 200;
-            int logoResNode2Offset = 56;
-            int logoResNodeFlagOffset = 0x9E;
-            ushort visibleFlag = 0x10;
+            var addon = (AtkUnitBase*) _gameGui.GetAddonByName("_TitleLogo", 1);
+            if (addon == null || addon->UldManager.NodeListCount < 2) return;
+            var node = addon->UldManager.NodeList[1];
+            if (node == null) return;
 
-            IntPtr flag = _pi.Framework.Gui.GetUiObjectByName(addonName, 1);
-            if (flag == IntPtr.Zero) return;
-            flag = Marshal.ReadIntPtr(flag, logoResNode1Offset);
-            if (flag == IntPtr.Zero) return;
-            flag = Marshal.ReadIntPtr(flag, logoResNode2Offset);
-            if (flag == IntPtr.Zero) return;
-            flag += logoResNodeFlagOffset;
-
-            unsafe
-            {
-                ushort flagVal = *(ushort*) flag.ToPointer();
-                if (state)
-                    *(ushort*) flag.ToPointer() = (ushort) (flagVal | visibleFlag);
-                else
-                    *(ushort*) flag.ToPointer() = (ushort) (flagVal & ~visibleFlag);
-            }
-        }
-
-        private void SetAlpha(string addonName, byte alpha)
-        {
-            int logoResNode1Offset = 200;
-            int logoResNode2Offset = 56;
-            int logoResNodeAlphaOffset = 0x73;
-
-            IntPtr alphaPtr = _pi.Framework.Gui.GetUiObjectByName(addonName, 1);
-            if (alphaPtr == IntPtr.Zero) return;
-            alphaPtr = Marshal.ReadIntPtr(alphaPtr, logoResNode1Offset);
-            if (alphaPtr == IntPtr.Zero) return;
-            alphaPtr = Marshal.ReadIntPtr(alphaPtr, logoResNode2Offset);
-            if (alphaPtr == IntPtr.Zero) return;
-            alphaPtr += logoResNodeAlphaOffset;
-
-            Marshal.WriteByte(alphaPtr, alpha);
-        }
-
-        public void EnableTitleLogo()
-        {
-            SetVisibleFlag("_TitleLogo", true);
+            node->ToggleVisibility(true);
         }
 
         public void SetRevisionStringVisibility(bool state)
@@ -441,12 +404,18 @@ namespace TitleEdit
             Task.Run(() =>
             {
                 // I didn't want to force this, but here we are
-                Stopwatch sw = new Stopwatch();
-                sw.Start();
+                var sw = Stopwatch.StartNew();
                 while (sw.ElapsedMilliseconds < 5000)
                 {
-                    SetAlpha("_TitleRevision", alpha);
-                    Thread.Sleep(250);
+                    unsafe
+                    {
+                        var rev = (AtkUnitBase*) _gameGui.GetAddonByName("_TitleRevision", 1);
+                        if (rev == null || rev->UldManager.NodeListCount < 2) continue;
+                        var node = rev->UldManager.NodeList[1];
+                        if (node == null) continue;
+                        node->Color.A = alpha;
+                        Thread.Sleep(250);
+                    }
                 }
             });
         }
@@ -496,15 +465,6 @@ namespace TitleEdit
             return ret;
         }
 
-        private bool AddonVisible(string addonName, int index = 1)
-        {
-            var addon = _pi.Framework.Gui.GetAddonByName(addonName, index);
-            var vis = addon?.Visible;
-            var value = vis ?? false;
-            Log($"{addonName} was {value}");
-            return value;
-        }
-        
         // This can be used to find new title screen (lol) logo animation lengths
         // public void LogLogoVisible()
         // {

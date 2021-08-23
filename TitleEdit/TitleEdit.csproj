@@ -42,43 +42,14 @@
             <Private>False</Private>
         </Reference>
         <Reference Include="Newtonsoft.Json">
-            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\Newtonsoft.Json.dll</HintPath>
-            <Private>False</Private>
-        </Reference>
-        <Reference Include="SharpDX">
-            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\SharpDX.dll</HintPath>
-            <Private>False</Private>
+          <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\Newtonsoft.Json.dll</HintPath>
         </Reference>
         <Reference Include="SharpDX.Mathematics">
-            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\SharpDX.Mathematics.dll</HintPath>
-            <Private>False</Private>
+          <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\SharpDX.Mathematics.dll</HintPath>
         </Reference>
-        <Reference Include="System.Numerics.Vectors">
-            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\System.Numerics.Vectors.dll</HintPath>
-            <Private>false</Private>
+        <Reference Include="FFXIVClientStructs">
+            <HintPath>$(AppData)\XIVLauncher\addon\Hooks\dev\FFXIVClientStructs.dll</HintPath>
         </Reference>
-        <Reference Include="System">
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="System.Core">
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="System.Numerics">
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="System.Xml.Linq">
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="System.Data.DataSetExtensions">
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="Microsoft.CSharp">
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="System.Data">
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="System.Xml" />
     </ItemGroup>
     <ItemGroup>
         <Content Include="bgm.csv">
@@ -142,6 +113,10 @@
         </Content>
         <Content Include="titlescreens\TE_AzysLla.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <None Remove="titlescreens\TE_Garlemald.json" />
+        <Content Include="titlescreens\TE_Garlemald.json">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
     <ItemGroup>

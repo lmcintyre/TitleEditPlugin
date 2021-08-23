@@ -7,15 +7,20 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using Dalamud.Data;
 using Dalamud.Game;
-using Dalamud.Game.ClientState.Actors;
+using Dalamud.Game.ClientState;
+using Dalamud.Game.ClientState.Keys;
 using Dalamud.Game.Command;
-using Dalamud.Game.Internal;
+using Dalamud.Game.Gui;
+using Dalamud.IoC;
+using Dalamud.Logging;
 using Dalamud.Plugin;
 using ImGuiNET;
 using Lumina.Excel.GeneratedSheets;
 using Newtonsoft.Json;
 using SharpDX;
+using Formatting = Newtonsoft.Json.Formatting;
 using Vector2 = System.Numerics.Vector2;
 using Vector3 = System.Numerics.Vector3;
 using Vector4 = System.Numerics.Vector4;
@@ -30,9 +35,9 @@ namespace TitleEdit
 
         private const int LookAtOffset = 192;
         private const int EyesPosOffset = 144;
+        private const int EorzeaTimeOffset = 0x1608;
 
         private TitleEditConfiguration _configuration;
-        private DalamudPluginInterface _pluginInterface;
         private BgmSheetManager _bgmSheet;
         private TitleEdit _titleEdit;
 
@@ -82,13 +87,33 @@ namespace TitleEdit
 
         private Dictionary<uint, TerritoryType> _territoryPaths;
         private Dictionary<uint, string> _weathers;
+        
+        private DalamudPluginInterface _pluginInterface;
+        private CommandManager _commandManager;
+        private DataManager _dataManager;
+        private ClientState _clientState;
+        private Framework _framework;
+        private KeyState _keyState;
 
-        public void Initialize(DalamudPluginInterface pluginInterface)
+        public TitleEditPlugin(
+            [RequiredVersion("1.0")] DalamudPluginInterface pluginInterface,
+            [RequiredVersion("1.0")] CommandManager commandManager,
+            [RequiredVersion("1.0")] DataManager dataManager,
+            [RequiredVersion("1.0")] ClientState clientState,
+            [RequiredVersion("1.0")] Framework framework,
+            [RequiredVersion("1.0")] KeyState keyState,
+            [RequiredVersion("1.0")] SigScanner sigScanner,
+            [RequiredVersion("1.0")] GameGui gameGui)
         {
             PluginLog.Log("===== T I T L E E D I T =====");
             _pluginInterface = pluginInterface;
+            _commandManager = commandManager;
+            _dataManager = dataManager;
+            _clientState = clientState;
+            _framework = framework;
+            _keyState = keyState;
 
-            _pluginInterface.CommandManager.AddHandler("/ptitle", new CommandInfo(OnTitleEditCommand)
+            _commandManager.AddHandler("/ptitle", new CommandInfo(OnTitleEditCommand)
             {
                 HelpMessage = "Open a window to set the title screen version.",
                 ShowInHelp = true
@@ -103,20 +128,20 @@ namespace TitleEdit
             PrepareAssets();
             EnumerateTitleScreenFiles();
 
-            _territoryPaths = pluginInterface.Data.GetExcelSheet<TerritoryType>()
+            _territoryPaths = dataManager.GetExcelSheet<TerritoryType>()
                 .ToDictionary(row => row.RowId, row => row);
-            _weathers = pluginInterface.Data.GetExcelSheet<Weather>()
+            _weathers = dataManager.GetExcelSheet<Weather>()
                 .ToDictionary(row => row.RowId, row => row.Name.ToString());
-            var bgms = pluginInterface.Data.GetExcelSheet<BGM>()
+            var bgms = dataManager.GetExcelSheet<BGM>()
                 .ToDictionary(row => (ushort) row.RowId, row => row.File.ToString());
             _bgmSheet = new BgmSheetManager(_titleScreenFolder, bgms);
             
-            _titleEdit = new TitleEdit(pluginInterface, _configuration, _titleScreenFolder);
+            _titleEdit = new TitleEdit(sigScanner, clientState, gameGui, _configuration, _titleScreenFolder);
             _titleEdit.Enable();
 
-            _pluginInterface.UiBuilder.OnBuildUi += UiBuilder_OnBuildUi;
-            _pluginInterface.Framework.OnUpdateEvent += CheckHotkey;
-            _pluginInterface.UiBuilder.OnOpenConfigUi += (_, _) => _isImguiTitleEditOpen = true;
+            _pluginInterface.UiBuilder.Draw += UiBuilder_OnBuildUi;
+            _framework.OnUpdateEvent += CheckHotkey;
+            _pluginInterface.UiBuilder.OpenConfigUi += (_, _) => _isImguiTitleEditOpen = true;
             PluginLog.Log("Init complete.");
         }
         
@@ -190,9 +215,9 @@ namespace TitleEdit
         private void CheckHotkey(Framework framework)
         {
             // ctrl+t only on title screen (maybe?)
-            if (_pluginInterface.ClientState.KeyState[0x11] &&
-                _pluginInterface.ClientState.KeyState[0x54] &&
-                _pluginInterface.ClientState.LocalPlayer == null &&
+            if (_keyState[0x11] &&
+                _keyState[0x54] &&
+                _clientState.LocalPlayer == null &&
                 _canChangeUiVisibility)
             {
                 _isImguiTitleEditOpen = !_isImguiTitleEditOpen;
@@ -243,7 +268,7 @@ namespace TitleEdit
             Vector3 eyesPos = default;
             Vector3 lookAt = default;
 #if !DEBUG
-            if (_pluginInterface?.ClientState?.LocalPlayer?.Position == null)
+            if (_clientState.LocalPlayer?.Position == null)
             {
                 ImGui.TextColored(new Vector4(1f, 0f, 0f, 1f), "The current game state is invalid for creating a title screen.");
                 stateInvalid = true;
@@ -303,21 +328,21 @@ namespace TitleEdit
                     ImGui.PopTextWrapPos();
                 }
 #else
-                if (!_territoryPaths.ContainsKey(_pluginInterface.ClientState.TerritoryType))
+                if (!_territoryPaths.ContainsKey(_clientState.TerritoryType))
                 {
                     ImGui.TextColored(new Vector4(1f, 0f, 0f, 1f), "The current territory is not valid for a title screen.");
                     stateInvalid = true;
                 }
                 else
                 {
-                    ImGui.Text($"Title screen zone: {_territoryPaths[_pluginInterface.ClientState.TerritoryType].PlaceName.Value.Name}");
+                    ImGui.Text($"Title screen zone: {_territoryPaths[_clientState.TerritoryType].PlaceName.Value.Name}");
                 }
 #endif
 
-                eyesPos = EyesPos(_pluginInterface.ClientState?.LocalPlayer?.Position ?? new Position3{X = 0, Y = 0, Z = 0});
+                eyesPos = EyesPos(_clientState.LocalPlayer?.Position ?? new Vector3{X = 0, Y = 0, Z = 0});
                 ImGui.Text($"Camera position: {eyesPos.X:F2}, {eyesPos.Y:F2}, {eyesPos.Z:F2}");
 
-                lookAt = LookAt(new SharpDX.Vector3(eyesPos.X, eyesPos.Y, eyesPos.Z));
+                lookAt = LookAt(new Vector3(eyesPos.X, eyesPos.Y, eyesPos.Z));
                 ImGui.Text($"\"Fix-on\" position: {lookAt.X:F2}, {lookAt.Y:F2}, {lookAt.Z:F2}");
 
                 ImGui.Text("Title camera FOV (in-game FoV will not change)");
@@ -329,11 +354,11 @@ namespace TitleEdit
                     _fovY = 1f;
                 
                 // Weather
-                var newType = _pluginInterface?.ClientState?.TerritoryType;
-                if (newType.HasValue && newType.Value != _lastTerritoryId)
+                var newType = _clientState.TerritoryType;
+                if (newType != _lastTerritoryId)
                 {
-                    _lastTerritoryId = newType.Value;
-                    UpdateWeathers(newType.Value);
+                    _lastTerritoryId = newType;
+                    UpdateWeathers(newType);
                 }
                 
                 byte currentWeather = _titleEdit.GetWeather();
@@ -433,7 +458,7 @@ namespace TitleEdit
                 }
 
                 // Time
-                long etS = Marshal.ReadInt64(_pluginInterface.Framework.Address.BaseAddress + 0x1608);
+                long etS = Marshal.ReadInt64(_framework.Address.BaseAddress + EorzeaTimeOffset);
                 var et = DateTimeOffset.FromUnixTimeSeconds(etS);
                 ImGui.Text($"Current time: {et.Hour:D2}:{et.Minute:D2}");
                 ImGui.SameLine();
@@ -502,7 +527,7 @@ namespace TitleEdit
 #if DEBUG
                 scr.TerritoryPath = _terriPath;
 #else
-                scr.TerritoryPath = _territoryPaths[_pluginInterface.ClientState.TerritoryType].Bg.ToString();
+                scr.TerritoryPath = _territoryPaths[_clientState.TerritoryType].Bg.ToString();
 #endif
                 scr.CameraPos = eyesPos;
                 scr.FixOnPos = lookAt;
@@ -707,9 +732,10 @@ namespace TitleEdit
             return Path.Combine(_titleScreenFolder, name + ".json");
         }
 
-        private Vector3 LookAt(SharpDX.Vector3 playerPos)
+        private Vector3 LookAt(Vector3 playerPos)
         {
             var viewMatrix = new Matrix();
+            var playerPosSdx = new SharpDX.Vector3(playerPos.X, playerPos.Y, playerPos.Z);
             
             var renderCam = TitleEditAddressResolver.RenderCamera;
             if (renderCam != IntPtr.Zero)
@@ -722,7 +748,7 @@ namespace TitleEdit
                 }
             }
 
-            var result = playerPos + viewMatrix.Left * 10f;
+            var result = playerPosSdx + viewMatrix.Left * 10f;
             return new Vector3(result.X, result.Y, result.Z);
         }
 
@@ -752,7 +778,7 @@ namespace TitleEdit
             if (!_territoryPaths.TryGetValue(id, out var path)) return;
             try
             {
-                var file = _pluginInterface.Data.GetFile<LvbFile>($"bg/{path.Bg}.lvb");
+                var file = _dataManager.GetFile<LvbFile>($"bg/{path.Bg}.lvb");
                 if (file?.weatherIds == null || file.weatherIds.Length == 0)
                     return;
                 foreach (var weather in file.weatherIds)
@@ -983,8 +1009,8 @@ namespace TitleEdit
 
         public void Dispose()
         {
-            _titleEdit.Dispose();
-            _pluginInterface.CommandManager.RemoveHandler("/ptitle");
+            _titleEdit?.Dispose();
+            _commandManager.RemoveHandler("/ptitle");
             _pluginInterface.Dispose();
         }
     }

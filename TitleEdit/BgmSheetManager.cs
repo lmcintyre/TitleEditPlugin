@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
-using Dalamud.Plugin;
+using Dalamud.Logging;
 
 namespace TitleEdit
 {

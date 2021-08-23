@@ -2,6 +2,15 @@
 author: attick & perchbird
 load_priority: 10
 description: |-
-  Create, share, and shuffle custom title screens for FFXIV.
+  Create your own custom title screen of your favorite location in-game, and open the game right up to that spot every time.
+  Includes a number of preinstalled title screens for you to use or get inspiration from, and an easy to use importer to
+  use title screens that others have shared!
+punchline: Create, share, and shuffle custom title screens for FFXIV.
 repo_url: https://github.com/lmcintyre/TitleEditPlugin
 dalamud_api_level: 4
+icon_url: https://raw.githubusercontent.com/lmcintyre/TitleEditPlugin/main/images/icon.png
+image_urls:
+  - https://raw.githubusercontent.com/lmcintyre/TitleEditPlugin/main/images/img1.png
+  - https://raw.githubusercontent.com/lmcintyre/TitleEditPlugin/main/images/img2.png
+  - https://raw.githubusercontent.com/lmcintyre/TitleEditPlugin/main/images/img3.png
+  - https://raw.githubusercontent.com/lmcintyre/TitleEditPlugin/main/images/img4.png
