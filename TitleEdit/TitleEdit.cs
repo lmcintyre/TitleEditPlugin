@@ -120,10 +120,10 @@ namespace TitleEdit
 
             _titleScreenBasePath = screenDir;
 
-            _createSceneHook = new Hook<OnCreateScene>(TitleEditAddressResolver.CreateScene, new OnCreateScene(HandleCreateScene), this);
-            _playMusicHook = new Hook<OnPlayMusic>(TitleEditAddressResolver.PlayMusic, new OnPlayMusic(HandlePlayMusic), this);
-            _fixOnHook = new Hook<OnFixOn>(TitleEditAddressResolver.FixOn, new OnFixOn(HandleFixOn), this);
-            _loadLogoResourceHook = new Hook<OnLoadLogoResource>(TitleEditAddressResolver.LoadLogoResource, new OnLoadLogoResource(HandleLoadLogoResource), this);
+            _createSceneHook = new Hook<OnCreateScene>(TitleEditAddressResolver.CreateScene, HandleCreateScene);
+            _playMusicHook = new Hook<OnPlayMusic>(TitleEditAddressResolver.PlayMusic, HandlePlayMusic);
+            _fixOnHook = new Hook<OnFixOn>(TitleEditAddressResolver.FixOn, HandleFixOn);
+            _loadLogoResourceHook = new Hook<OnLoadLogoResource>(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
 
             _setTime = Marshal.GetDelegateForFunctionPointer<SetTimePrototype>(TitleEditAddressResolver.SetTime);
             RefreshCurrentTitleEditScreen();
