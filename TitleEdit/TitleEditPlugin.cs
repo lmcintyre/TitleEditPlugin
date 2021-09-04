@@ -140,8 +140,8 @@ namespace TitleEdit
             _titleEdit.Enable();
 
             _pluginInterface.UiBuilder.Draw += UiBuilder_OnBuildUi;
-            _framework.OnUpdateEvent += CheckHotkey;
-            _pluginInterface.UiBuilder.OpenConfigUi += (_, _) => _isImguiTitleEditOpen = true;
+            _framework.Update += CheckHotkey;
+            _pluginInterface.UiBuilder.OpenConfigUi += () => _isImguiTitleEditOpen = true;
             PluginLog.Log("Init complete.");
         }
         
