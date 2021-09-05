@@ -352,7 +352,6 @@ namespace TitleEdit
 
             return bgSelector != null &&
                    bgSelector->IsVisible &&
-                   _clientState.LocalPlayer == null &&
                    path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
         }
 
