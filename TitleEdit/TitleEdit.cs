@@ -347,11 +347,12 @@ namespace TitleEdit
         private unsafe bool IsLobby(string path)
         {
             // In the Lobby, the loaded zone is z1c1, the Bg Selector for
-            // charamake is not visible, and the local player is null
+            // charamake is not visible
             var bgSelector = (AtkUnitBase*) _gameGui.GetAddonByName("_CharaMakeBgSelector", 1);
+            if (bgSelector != null)
+                Log($"BgSelector visible? {bgSelector->IsVisible}");
 
-            return bgSelector != null &&
-                   bgSelector->IsVisible &&
+            return (bgSelector != null && !bgSelector->IsVisible || bgSelector == null) &&
                    path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
         }
 
