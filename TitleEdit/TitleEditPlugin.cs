@@ -720,7 +720,7 @@ namespace TitleEdit
                 ImGui.EndChild();
                 ImGui.SameLine();
                 if (ImGui.Button("Open presets folder"))
-                    Process.Start(_titleScreenFolder);
+                    Process.Start(new ProcessStartInfo(_titleScreenFolder) {UseShellExecute = true});
             }
 
             ImGui.EndChild();
