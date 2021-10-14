@@ -31,8 +31,6 @@ namespace TitleEdit
     {
         public string Name => "Title Edit";
 
-        public string AssemblyLocation { get; set; } = Assembly.GetExecutingAssembly().Location;
-
         public const string TitleEditCommand = "/titleedit";
         private const int LookAtOffset = 192;
         private const int EyesPosOffset = 144;
@@ -147,7 +145,7 @@ namespace TitleEdit
         
         private void PrepareAssets()
         {
-            var temp = Path.Combine(Path.GetDirectoryName(AssemblyLocation), "titlescreens");
+            var temp = Path.Combine(Path.GetDirectoryName(_pluginInterface.AssemblyLocation.FullName), "titlescreens");
             var assets = Directory.GetFiles(temp);
             foreach (var asset in assets)
             {
