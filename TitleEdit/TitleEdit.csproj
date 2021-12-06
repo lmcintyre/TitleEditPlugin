@@ -58,8 +58,8 @@
         <Content Include="bgm.csv">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
-        <Content Include="DalamudPackager.targets"/>
-        <Content Include="TitleEdit.yaml"/>
+        <Content Include="DalamudPackager.targets" />
+        <Content Include="TitleEdit.yaml" />
         <Content Include="titlescreens\A Realm Reborn.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
@@ -122,6 +122,6 @@
         </Content>
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="DalamudPackager" Version="1.2.3"/>
+        <PackageReference Include="DalamudPackager" Version="2.1.5" />
     </ItemGroup>
 </Project>

@@ -16,8 +16,8 @@ namespace TitleEdit
     public class TitleEditConfiguration : IPluginConfiguration
     {
         public List<string> TitleList { get; set; } = new();
-        public string SelectedTitleFileName { get; set; } = "Shadowbringers";
-        public string SelectedLogoName { get; set; } = "Shadowbringers";
+        public string SelectedTitleFileName { get; set; } = "Endwalker";
+        public string SelectedLogoName { get; set; } = "Endwalker";
         public bool DisplayTitleLogo { get; set; } = true;
         public bool DisplayVersionText { get; set; } = true;
         public OverrideSetting Override { get; set; } = OverrideSetting.UseIfUnspecified;

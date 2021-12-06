@@ -1,0 +1,20 @@
+{
+  "Name": "Endwalker",
+  "Logo": "Endwalker",
+  "DisplayLogo": true,
+  "TerritoryPath": "ex4/05_zon_z5/chr/z5c1/level/z5c1",
+  "CameraPos": {
+    "X": 0.0,
+    "Y": 0.0,
+    "Z": 10.0
+  },
+  "FixOnPos": {
+    "X": 0.0,
+    "Y": 0.0,
+    "Z": 0.0
+  },
+  "FovY": 0.174,
+  "WeatherId": 2,
+  "TimeOffset": 0,
+  "BgmPath": "music/ex4/BGM_EX4_System_Title.scd"
+}

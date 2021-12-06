@@ -56,17 +56,17 @@ namespace TitleEdit
         private TitleEditScreen _currentScreen;
 
         // Hardcoded fallback info now that jank is resolved
-        private static TitleEditScreen Shadowbringers => new()
+        private static TitleEditScreen Endwalker => new()
         {
-            Name = "Shadowbringers",
+            Name = "Endwalker",
             TerritoryPath = "ex3/05_zon_z4/chr/z4c1/level/z4c1",
-            Logo = "Shadowbringers",
+            Logo = "Endwalker",
             DisplayLogo = true,
-            CameraPos = new Vector3(0, 5, 10),
+            CameraPos = new Vector3(0, 0, 10),
             FixOnPos = new Vector3(0, 0, 0),
-            FovY = 1,
+            FovY = 0.1745f,
             WeatherId = 2,
-            BgmPath = "music/ex3/BGM_EX3_System_Title.scd"
+            BgmPath = "music/ex4/BGM_EX4_System_Title.scd"
         };
         
         public TitleEdit(
@@ -117,7 +117,7 @@ namespace TitleEdit
                 else
                 {
                     // The custom title list was somehow empty
-                    toLoad = "Shadowbringers";
+                    toLoad = "Endwalker";
                 }
             }
 
@@ -127,10 +127,10 @@ namespace TitleEdit
                 PluginLog.Log($"Title Edit tried to find {path}, but no title file was found, so title settings have been reset.");
                 _configuration.TitleList = new List<string>();
                 _configuration.DisplayTitleLogo = true;
-                _configuration.SelectedTitleFileName = "Shadowbringers";
-                _configuration.SelectedLogoName = "Shadowbringers";
+                _configuration.SelectedTitleFileName = "Endwalker";
+                _configuration.SelectedLogoName = "Endwalker";
                 _configuration.Save();
-                _currentScreen = Shadowbringers;
+                _currentScreen = Endwalker;
                 return;
             }
 
@@ -145,7 +145,7 @@ namespace TitleEdit
             _titleCameraNeedsSet = false;
             _amForcingTime = false;
             _amForcingWeather = false;
-
+            
             if (IsLobby(p1))
             {
                 Log("Loading lobby and lobby fixon.");
@@ -153,7 +153,7 @@ namespace TitleEdit
                 FixOn(new Vector3(0, 0, 0), new Vector3(0, 0.8580103f, 0), 1);
                 return returnVal;
             }
-
+            
             if (IsTitleScreen(p1))
             {
                 Log("Loading custom title.");
@@ -174,8 +174,8 @@ namespace TitleEdit
         private IntPtr HandlePlayMusic(IntPtr self, string filename, float volume, uint fadeTime)
         {
             Log($"HandlePlayMusic {self.ToInt64():X} {filename} {volume} {fadeTime}");
-            if (filename.EndsWith("_System_Title.scd") && _currentScreen != null)
-                filename = _currentScreen.BgmPath;
+            // if (filename.EndsWith("_System_Title.scd") && _currentScreen != null)
+                // filename = _currentScreen.BgmPath;
             return _playMusicHook.Original(self, filename, volume, fadeTime);
         }
 
@@ -186,8 +186,7 @@ namespace TitleEdit
             float[] focusPos,
             float fovY)
         {
-            Log($"HandleFixOn {self.ToInt64():X} {cameraPos[0]} {cameraPos[1]} {cameraPos[2]} " +
-                $"{focusPos[0]} {focusPos[1]} {focusPos[2]} {fovY} | {_titleCameraNeedsSet}");
+            Log($"HandleFixOn {self.ToInt64():X} | {cameraPos[0]} {cameraPos[1]} {cameraPos[2]} | {focusPos[0]} {focusPos[1]} {focusPos[2]} | {fovY} | {_titleCameraNeedsSet}");
             if (!_titleCameraNeedsSet || _currentScreen == null)
                 return _fixOnHook.Original(self, cameraPos, focusPos, fovY);
             _titleCameraNeedsSet = false;
@@ -195,6 +194,7 @@ namespace TitleEdit
                 FloatArrayFromVector3(_currentScreen.CameraPos),
                 FloatArrayFromVector3(_currentScreen.FixOnPos),
                 _currentScreen.FovY);
+            // return _fixOnHook.Original(self, cameraPos, focusPos, fovY);
         }
 
         public TitleEditScreen FixOnCurrent()
@@ -228,14 +228,14 @@ namespace TitleEdit
             if (!p2.Contains("Title_Logo") || _currentScreen == null) return _loadLogoResourceHook.Original(p1, p2, p3, p4);
             Log($"HandleLoadLogoResource {p1.ToInt64():X} {p2} {p3} {p4}");
             ulong result;
-
+            
             var logo = _configuration.SelectedLogoName;
             var display = _configuration.DisplayTitleLogo;
             var over = _configuration.Override;
             var visOver = _configuration.VisibilityOverride;
             if (over == OverrideSetting.UseIfUnspecified && _currentScreen.Logo != "Unspecified")
                 logo = _currentScreen.Logo;
-
+            
             if (visOver == OverrideSetting.UseIfUnspecified && _currentScreen.Logo != "Unspecified")
                 display = _currentScreen.DisplayLogo;
             
@@ -259,14 +259,19 @@ namespace TitleEdit
                 case "Shadowbringers":
                     result = _loadLogoResourceHook.Original(p1, "Title_Logo500", p3, p4);
                     break;
+                case "Endwalker":
+                    result = _loadLogoResourceHook.Original(p1, "Title_Logo600", p3, p4);
+                    break;
                 default:
-                    result = _loadLogoResourceHook.Original(p1, "Title_Logo500", p3, p4);
+                    result = _loadLogoResourceHook.Original(p1, "Title_Logo600", p3, p4);
                     break;
             }
-
+            
             if (!display)
                 DisableTitleLogo();
+            Task.Run(LogLogoVisible);
             return result;
+            // return _loadLogoResourceHook.Original(p1, p2, p3, p4);
         }
 
         public void Enable()
@@ -338,7 +343,8 @@ namespace TitleEdit
         // TODO: Eventually figure out how to do these without excluding free trial players
         private bool IsTitleScreen(string path)
         {
-            return path == "ex3/05_zon_z4/chr/z4c1/level/z4c1" ||
+            return path == "ex4/05_zon_z5/chr/z5c1/level/z5c1" ||
+                   path == "ex3/05_zon_z4/chr/z4c1/level/z4c1" ||
                    path == "ex2/05_zon_z3/chr/z3c1/level/z3c1" ||
                    path == "ex1/05_zon_z2/chr/z2c1/level/z2c1"; // ||
             // path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
@@ -466,43 +472,43 @@ namespace TitleEdit
         }
 
         // This can be used to find new title screen (lol) logo animation lengths
-        // public void LogLogoVisible()
-        // {
-        //     int logoResNode1Offset = 200;
-        //     int logoResNode2Offset = 56;
-        //     int logoResNodeFlagOffset = 0x9E;
-        //     ushort visibleFlag = 0x10;
-        //
-        //     ushort flagVal;
-        //     var start = Stopwatch.StartNew();
-        //
-        //     do
-        //     {
-        //         IntPtr flag = _pi.Framework.Gui.GetUiObjectByName("_TitleLogo", 1);
-        //         if (flag == IntPtr.Zero) continue;
-        //         flag = Marshal.ReadIntPtr(flag, logoResNode1Offset);
-        //         if (flag == IntPtr.Zero) continue;
-        //         flag = Marshal.ReadIntPtr(flag, logoResNode2Offset);
-        //         if (flag == IntPtr.Zero) continue;
-        //         flag += logoResNodeFlagOffset;
-        //
-        //         unsafe
-        //         {
-        //             flagVal = *(ushort*) flag.ToPointer();
-        //             if ((flagVal & visibleFlag) == visibleFlag)
-        //                 PluginLog.Log($"visible: {(flagVal & visibleFlag) == visibleFlag} | {start.ElapsedMilliseconds}");
-        //             
-        //             // arr: 59
-        //             // arrft: 61
-        //             // hw: 57
-        //             // sb: 2060
-        //             // shb: 2060
-        //             *(ushort*) flag.ToPointer() = (ushort) (flagVal & ~visibleFlag);
-        //         }
-        //     } while (start.ElapsedMilliseconds < 5000);
-        //
-        //     start.Stop();
-        // }
+        public void LogLogoVisible()
+        {
+            int logoResNode1Offset = 200;
+            int logoResNode2Offset = 56;
+            int logoResNodeFlagOffset = 0x9E;
+            ushort visibleFlag = 0x10;
+        
+            ushort flagVal;
+            var start = Stopwatch.StartNew();
+        
+            do
+            {
+                IntPtr flag = _gameGui.GetAddonByName("_TitleLogo", 1);
+                if (flag == IntPtr.Zero) continue;
+                flag = Marshal.ReadIntPtr(flag, logoResNode1Offset);
+                if (flag == IntPtr.Zero) continue;
+                flag = Marshal.ReadIntPtr(flag, logoResNode2Offset);
+                if (flag == IntPtr.Zero) continue;
+                flag += logoResNodeFlagOffset;
+        
+                unsafe
+                {
+                    flagVal = *(ushort*) flag.ToPointer();
+                    if ((flagVal & visibleFlag) == visibleFlag)
+                        PluginLog.Log($"visible: {(flagVal & visibleFlag) == visibleFlag} | {start.ElapsedMilliseconds}");
+                    
+                    // arr: 59
+                    // arrft: 61
+                    // hw: 57
+                    // sb: 2060
+                    // shb: 2060
+                    *(ushort*) flag.ToPointer() = (ushort) (flagVal & ~visibleFlag);
+                }
+            } while (start.ElapsedMilliseconds < 15000);
+        
+            start.Stop();
+        }
 
         private void Log(string s)
         {

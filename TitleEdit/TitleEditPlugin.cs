@@ -44,8 +44,8 @@ namespace TitleEdit
         private string _titleScreenFolder;
         private string[] _titleScreens;
         private string[] _titleScreensExport;
-        private readonly string[] _titleLogos = {"A Realm Reborn", "FFXIV Free Trial", "Heavensward", "Stormblood", "Shadowbringers"};
-        private readonly string[] _titleLogosCreate = {"A Realm Reborn", "FFXIV Free Trial", "Heavensward", "Stormblood", "Shadowbringers", "Unspecified"};
+        private readonly string[] _titleLogos = {"A Realm Reborn", "FFXIV Free Trial", "Heavensward", "Stormblood", "Shadowbringers", "Endwalker"};
+        private readonly string[] _titleLogosCreate = {"A Realm Reborn", "FFXIV Free Trial", "Heavensward", "Stormblood", "Shadowbringers", "Endwalker", "Unspecified"};
         private bool _canChangeUiVisibility = true;
         private bool _isImguiTitleEditOpen;
         private int _selectedTitleIndex;
