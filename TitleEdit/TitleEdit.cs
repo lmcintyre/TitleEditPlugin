@@ -13,6 +13,7 @@ using Dalamud.Game.Gui;
 using Dalamud.Hooking;
 using Dalamud.Logging;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using Lumina.Excel.GeneratedSheets;
 using Newtonsoft.Json;
 
 namespace TitleEdit
@@ -174,8 +175,8 @@ namespace TitleEdit
         private IntPtr HandlePlayMusic(IntPtr self, string filename, float volume, uint fadeTime)
         {
             Log($"HandlePlayMusic {self.ToInt64():X} {filename} {volume} {fadeTime}");
-            // if (filename.EndsWith("_System_Title.scd") && _currentScreen != null)
-                // filename = _currentScreen.BgmPath;
+            if (filename.EndsWith("_System_Title.scd") && _currentScreen != null)
+                filename = _currentScreen.BgmPath;
             return _playMusicHook.Original(self, filename, volume, fadeTime);
         }
 
@@ -269,7 +270,7 @@ namespace TitleEdit
             
             if (!display)
                 DisableTitleLogo();
-            Task.Run(LogLogoVisible);
+            // Task.Run(LogLogoVisible);
             return result;
             // return _loadLogoResourceHook.Original(p1, p2, p3, p4);
         }
@@ -295,13 +296,22 @@ namespace TitleEdit
             _amForcingTime = true;
             Task.Run(() =>
             {
-                Stopwatch stop = Stopwatch.StartNew();
-                do
+                try
                 {
-                    _setTime(timeOffset);
-                    Thread.Sleep(50);
-                } while (stop.ElapsedMilliseconds < forceTime && _amForcingTime);
-                Log($"Done forcing time.");
+                    Stopwatch stop = Stopwatch.StartNew();
+                    do
+                    {
+                        if (TitleEditAddressResolver.SetTime != IntPtr.Zero)
+                            _setTime(timeOffset);
+                        Thread.Sleep(50);
+                    } while (stop.ElapsedMilliseconds < forceTime && _amForcingTime);
+
+                    Log($"Done forcing time.");
+                }
+                catch (Exception e)
+                {
+                    PluginLog.Error(e, "An error occurred when forcing time.");
+                }
             });
         }
         
@@ -310,23 +320,31 @@ namespace TitleEdit
             _amForcingWeather = true;
             Task.Run(() =>
             {
-                Stopwatch stop = Stopwatch.StartNew();
-                do
+                try
                 {
-                    SetWeather(weather);
-                    Thread.Sleep(20);
-                } while (stop.ElapsedMilliseconds < forceTime && _amForcingWeather);
-                Log($"Done forcing weather.");
-                Log($"Weather is now {GetWeather()}");
+                    Stopwatch stop = Stopwatch.StartNew();
+                    do
+                    {
+                        SetWeather(weather);
+                        Thread.Sleep(20);
+                    } while (stop.ElapsedMilliseconds < forceTime && _amForcingWeather);
+                    Log($"Done forcing weather.");
+                    Log($"Weather is now {GetWeather()}");    
+                }
+                catch (Exception e)
+                {
+                    PluginLog.Error(e, "An error occurred when forcing weather.");
+                }
             });
         }
 
         public byte GetWeather()
         {
-            byte weather;
+            byte weather = 2;
             unsafe
             {
-                weather = *(byte*) TitleEditAddressResolver.WeatherPtr;
+                if (TitleEditAddressResolver.WeatherPtr != IntPtr.Zero)
+                    weather = *(byte*) TitleEditAddressResolver.WeatherPtr;
             }
 
             return weather;
@@ -336,7 +354,8 @@ namespace TitleEdit
         {
             unsafe
             {
-                *(byte*) TitleEditAddressResolver.WeatherPtr = weather;
+                if (TitleEditAddressResolver.WeatherPtr != IntPtr.Zero)
+                    *(byte*) TitleEditAddressResolver.WeatherPtr = weather;
             }
         }
 
@@ -472,43 +491,44 @@ namespace TitleEdit
         }
 
         // This can be used to find new title screen (lol) logo animation lengths
-        public void LogLogoVisible()
-        {
-            int logoResNode1Offset = 200;
-            int logoResNode2Offset = 56;
-            int logoResNodeFlagOffset = 0x9E;
-            ushort visibleFlag = 0x10;
-        
-            ushort flagVal;
-            var start = Stopwatch.StartNew();
-        
-            do
-            {
-                IntPtr flag = _gameGui.GetAddonByName("_TitleLogo", 1);
-                if (flag == IntPtr.Zero) continue;
-                flag = Marshal.ReadIntPtr(flag, logoResNode1Offset);
-                if (flag == IntPtr.Zero) continue;
-                flag = Marshal.ReadIntPtr(flag, logoResNode2Offset);
-                if (flag == IntPtr.Zero) continue;
-                flag += logoResNodeFlagOffset;
-        
-                unsafe
-                {
-                    flagVal = *(ushort*) flag.ToPointer();
-                    if ((flagVal & visibleFlag) == visibleFlag)
-                        PluginLog.Log($"visible: {(flagVal & visibleFlag) == visibleFlag} | {start.ElapsedMilliseconds}");
-                    
-                    // arr: 59
-                    // arrft: 61
-                    // hw: 57
-                    // sb: 2060
-                    // shb: 2060
-                    *(ushort*) flag.ToPointer() = (ushort) (flagVal & ~visibleFlag);
-                }
-            } while (start.ElapsedMilliseconds < 15000);
-        
-            start.Stop();
-        }
+        // public void LogLogoVisible()
+        // {
+        //     int logoResNode1Offset = 200;
+        //     int logoResNode2Offset = 56;
+        //     int logoResNodeFlagOffset = 0x9E;
+        //     ushort visibleFlag = 0x10;
+        //
+        //     ushort flagVal;
+        //     var start = Stopwatch.StartNew();
+        //
+        //     do
+        //     {
+        //         IntPtr flag = _gameGui.GetAddonByName("_TitleLogo", 1);
+        //         if (flag == IntPtr.Zero) continue;
+        //         flag = Marshal.ReadIntPtr(flag, logoResNode1Offset);
+        //         if (flag == IntPtr.Zero) continue;
+        //         flag = Marshal.ReadIntPtr(flag, logoResNode2Offset);
+        //         if (flag == IntPtr.Zero) continue;
+        //         flag += logoResNodeFlagOffset;
+        //
+        //         unsafe
+        //         {
+        //             flagVal = *(ushort*) flag.ToPointer();
+        //             if ((flagVal & visibleFlag) == visibleFlag)
+        //                 PluginLog.Log($"visible: {(flagVal & visibleFlag) == visibleFlag} | {start.ElapsedMilliseconds}");
+        //             
+        //             // arr: 59
+        //             // arrft: 61
+        //             // hw: 57
+        //             // sb: 2060
+        //             // shb: 2060
+        //             // ew: 10500
+        //             *(ushort*) flag.ToPointer() = (ushort) (flagVal & ~visibleFlag);
+        //         }
+        //     } while (start.ElapsedMilliseconds < 15000);
+        //
+        //     start.Stop();
+        // }
 
         private void Log(string s)
         {
