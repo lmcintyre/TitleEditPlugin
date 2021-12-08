@@ -13,7 +13,6 @@ using Dalamud.Game.Gui;
 using Dalamud.Hooking;
 using Dalamud.Logging;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using Lumina.Excel.GeneratedSheets;
 using Newtonsoft.Json;
 
 namespace TitleEdit
@@ -60,7 +59,7 @@ namespace TitleEdit
         private static TitleEditScreen Endwalker => new()
         {
             Name = "Endwalker",
-            TerritoryPath = "ex3/05_zon_z4/chr/z4c1/level/z4c1",
+            TerritoryPath = "ex4/05_zon_z4/chr/z4c1/level/z4c1",
             Logo = "Endwalker",
             DisplayLogo = true,
             CameraPos = new Vector3(0, 0, 10),
@@ -160,6 +159,7 @@ namespace TitleEdit
                 Log("Loading custom title.");
                 RefreshCurrentTitleEditScreen();
                 p1 = _currentScreen.TerritoryPath;
+                Log($"Title zone: {p1}");
                 var returnVal = _createSceneHook.Original(p1, p2, p3, p4, p5, p6, p7);
                 _titleCameraNeedsSet = true;
                 ForceWeather(_currentScreen.WeatherId, 5000);
@@ -190,6 +190,7 @@ namespace TitleEdit
             Log($"HandleFixOn {self.ToInt64():X} | {cameraPos[0]} {cameraPos[1]} {cameraPos[2]} | {focusPos[0]} {focusPos[1]} {focusPos[2]} | {fovY} | {_titleCameraNeedsSet}");
             if (!_titleCameraNeedsSet || _currentScreen == null)
                 return _fixOnHook.Original(self, cameraPos, focusPos, fovY);
+            Log($"HandleFixOn Result {self.ToInt64():X} | {_currentScreen.CameraPos.X} {_currentScreen.CameraPos.Y} {_currentScreen.CameraPos.Z} | {_currentScreen.FixOnPos.X} {_currentScreen.FixOnPos.Y} {_currentScreen.FixOnPos.Z} | {_currentScreen.FovY}");
             _titleCameraNeedsSet = false;
             return _fixOnHook.Original(self,
                 FloatArrayFromVector3(_currentScreen.CameraPos),
@@ -267,12 +268,15 @@ namespace TitleEdit
                     result = _loadLogoResourceHook.Original(p1, "Title_Logo600", p3, p4);
                     break;
             }
-            
+
+            // Somehow this works without this, the animation doesn't unhide it?
+            // No idea
+            // var delay = 2001;
+            // if (logo == "Endwalker")
+            //     delay = 10600;
             if (!display)
                 DisableTitleLogo();
-            // Task.Run(LogLogoVisible);
             return result;
-            // return _loadLogoResourceHook.Original(p1, p2, p3, p4);
         }
 
         public void Enable()

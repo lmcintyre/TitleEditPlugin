@@ -241,6 +241,7 @@ namespace TitleEdit
             DrawManage();
             DrawSettings();
             DrawInformation();
+            // TitleEditDebug.DrawDebug(_pluginInterface, _titleEdit, _weathers);
             DrawCredits();
 
             ImGui.EndTabBar();

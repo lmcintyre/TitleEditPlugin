@@ -84,6 +84,9 @@
         <Content Include="titlescreens\TE_Amaurot.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
+        <Content Include="titlescreens\TE_Carrotorium.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
         <Content Include="titlescreens\TE_Central Shroud.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>

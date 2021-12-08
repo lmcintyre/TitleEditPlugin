@@ -1,0 +1,20 @@
+{
+  "Name": "TE_Carrotorium",
+  "Logo": "Endwalker",
+  "DisplayLogo": true,
+  "TerritoryPath": "ex4/04_uvs_u5/fld/u5f1/level/u5f1",
+  "CameraPos": {
+    "X": -510.2475,
+    "Y": -150.07487,
+    "Z": -522.2673
+  },
+  "FixOnPos": {
+    "X": -516.4116,
+    "Y": -157.72548,
+    "Z": -524.1306
+  },
+  "FovY": 1.0,
+  "WeatherId": 2,
+  "TimeOffset": 0,
+  "BgmPath": "music/ex4/BGM_EX4_Dan_D07.scd"
+}
