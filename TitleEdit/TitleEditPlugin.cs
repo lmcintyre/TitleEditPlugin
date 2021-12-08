@@ -34,7 +34,6 @@ namespace TitleEdit
         public const string TitleEditCommand = "/titleedit";
         private const int LookAtOffset = 192;
         private const int EyesPosOffset = 144;
-        private const int EorzeaTimeOffset = 0x1608;
 
         private TitleEditConfiguration _configuration;
         private BgmSheetManager _bgmSheet;
@@ -457,7 +456,11 @@ namespace TitleEdit
                 }
 
                 // Time
-                long etS = Marshal.ReadInt64(_framework.Address.BaseAddress + EorzeaTimeOffset);
+                long etS = 0;
+                unsafe
+                {
+                    etS = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->EorzeaTime;    
+                }
                 var et = DateTimeOffset.FromUnixTimeSeconds(etS);
                 ImGui.Text($"Current time: {et.Hour:D2}:{et.Minute:D2}");
                 ImGui.SameLine();
