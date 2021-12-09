@@ -133,7 +133,7 @@ namespace TitleEdit
                 .ToDictionary(row => (ushort) row.RowId, row => row.File.ToString());
             _bgmSheet = new BgmSheetManager(_titleScreenFolder, bgms);
             
-            _titleEdit = new TitleEdit(sigScanner, clientState, gameGui, _configuration, _titleScreenFolder);
+            _titleEdit = new TitleEdit(sigScanner, clientState, gameGui, dataManager, _configuration, _titleScreenFolder);
             _titleEdit.Enable();
 
             _pluginInterface.UiBuilder.Draw += UiBuilder_OnBuildUi;

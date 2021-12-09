@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Dalamud;
+using Dalamud.Data;
 using Dalamud.Game;
 using Dalamud.Game.ClientState;
 using Dalamud.Game.Gui;
@@ -39,6 +42,7 @@ namespace TitleEdit
 
         private readonly ClientState _clientState;
         private readonly GameGui _gameGui;
+        private readonly DataManager _data;
         private readonly TitleEditConfiguration _configuration;
 
         private readonly Hook<OnCreateScene> _createSceneHook;
@@ -56,29 +60,31 @@ namespace TitleEdit
         private TitleEditScreen _currentScreen;
 
         // Hardcoded fallback info now that jank is resolved
-        private static TitleEditScreen Endwalker => new()
+        private static TitleEditScreen ARealmReborn => new()
         {
-            Name = "Endwalker",
-            TerritoryPath = "ex4/05_zon_z4/chr/z4c1/level/z4c1",
-            Logo = "Endwalker",
+            Name = "A Realm Reborn",
+            TerritoryPath = "ffxiv/zon_z1/chr/z1c1/level/z1c1",
+            Logo = "A Realm Reborn",
             DisplayLogo = true,
-            CameraPos = new Vector3(0, 0, 10),
-            FixOnPos = new Vector3(0, 0, 0),
-            FovY = 0.1745f,
+            CameraPos = new Vector3(0, 0.5f, -1.3f),
+            FixOnPos = new Vector3(0, 1.0f, 0),
+            FovY = 45f,
             WeatherId = 2,
-            BgmPath = "music/ex4/BGM_EX4_System_Title.scd"
+            BgmPath = "music/ffxiv/BGM_System_Title.scd"
         };
         
         public TitleEdit(
             SigScanner scanner,
             ClientState clientState,
             GameGui gameGui,
+            DataManager data,
             TitleEditConfiguration configuration,
             string screenDir)
         {
             PluginLog.Log("TitleEdit hook init");
             _clientState = clientState;
             _gameGui = gameGui;
+            _data = data;
             _configuration = configuration;
 
             TitleEditAddressResolver.Setup64Bit(scanner);
@@ -125,18 +131,37 @@ namespace TitleEdit
             if (!File.Exists(path))
             {
                 PluginLog.Log($"Title Edit tried to find {path}, but no title file was found, so title settings have been reset.");
-                _configuration.TitleList = new List<string>();
-                _configuration.DisplayTitleLogo = true;
-                _configuration.SelectedTitleFileName = "Endwalker";
-                _configuration.SelectedLogoName = "Endwalker";
-                _configuration.Save();
-                _currentScreen = Endwalker;
+                Fail();
                 return;
             }
 
             var contents = File.ReadAllText(path);
             _currentScreen = JsonConvert.DeserializeObject<TitleEditScreen>(contents);
+
+            if (!IsScreenValid(_currentScreen))
+            {
+                PluginLog.Log($"Title Edit tried to load {_currentScreen.Name}, but the necessary files are missing, so title settings have been reset.");
+                Fail();
+                return;
+            }
+            
             Log($"Title Edit loaded {path}");
+        }
+
+        private bool IsScreenValid(TitleEditScreen screen)
+        {
+            return _data.FileExists($"bg/{screen.TerritoryPath}.lvb") &&
+                   _data.FileExists(screen.BgmPath);
+        }
+
+        private void Fail()
+        {
+            _configuration.TitleList = new List<string>();
+            _configuration.DisplayTitleLogo = true;
+            _configuration.SelectedTitleFileName = "A Realm Reborn";
+            _configuration.SelectedLogoName = "A Realm Reborn";
+            _configuration.Save();
+            _currentScreen = ARealmReborn;
         }
 
         private int HandleCreateScene(string p1, uint p2, IntPtr p3, uint p4, IntPtr p5, int p6, uint p7)
@@ -366,11 +391,11 @@ namespace TitleEdit
         // TODO: Eventually figure out how to do these without excluding free trial players
         private bool IsTitleScreen(string path)
         {
-            return path == "ex4/05_zon_z5/chr/z5c1/level/z5c1" ||
+            return (path == "ex4/05_zon_z5/chr/z5c1/level/z5c1" ||
                    path == "ex3/05_zon_z4/chr/z4c1/level/z4c1" ||
                    path == "ex2/05_zon_z3/chr/z3c1/level/z3c1" ||
-                   path == "ex1/05_zon_z2/chr/z2c1/level/z2c1"; // ||
-            // path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
+                   path == "ex1/05_zon_z2/chr/z2c1/level/z2c1") &&
+                   !IsLobby(path);
         }
 
         private unsafe bool IsLobby(string path)
@@ -380,9 +405,44 @@ namespace TitleEdit
             var bgSelector = (AtkUnitBase*) _gameGui.GetAddonByName("_CharaMakeBgSelector", 1);
             if (bgSelector != null)
                 Log($"BgSelector visible? {bgSelector->IsVisible}");
+            else
+                Log($"BgSelector null!");
+
+            var titleMenu = (AtkUnitBase*)_gameGui.GetAddonByName("_TitleMenu", 1);
+            if (titleMenu != null)
+                Log($"TitleMenu visible? {titleMenu->IsVisible}");
+            else
+                Log($"TitleMenu null!");
+
+            Log($"Title: {GetState("Title")}");
+            Log($"_TitleLogo: {GetState("_TitleLogo")}");
+            Log($"_TitleMenu: {GetState("_TitleMenu")}");
+            Log($"_TitleRevision: {GetState("_TitleRevision")}");
+            Log($"_TitleRights: {GetState("_TitleRights")}");
+            // Log($"Title: {GetState("Title")}");
+            // Log($"Title: {GetState("Title")}");
 
             return (bgSelector != null && !bgSelector->IsVisible || bgSelector == null) &&
-                   path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
+                   (titleMenu != null && titleMenu->IsVisible) &&
+                    path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
+        }
+
+        enum UiState
+        {
+            Null,
+            NotNull,
+            Visible
+        }
+
+        private unsafe UiState GetState(string uiName)
+        {
+            var ui = (AtkUnitBase*)_gameGui.GetAddonByName(uiName, 1);
+            if (ui != null)
+            {
+                return ui->IsVisible ? UiState.Visible : UiState.NotNull;
+            }
+
+            return UiState.Null;
         }
 
         public unsafe void DisableTitleLogo(int delay = 2001)
@@ -396,7 +456,7 @@ namespace TitleEdit
                 if (addon == null || addon->UldManager.NodeListCount < 2) return;
                 var node = addon->UldManager.NodeList[1];
                 if (node == null) return;
-
+            
                 // The user has probably seen the logo by now, so don't abruptly hide it - be graceful
                 if (delay > 1000)
                 {
@@ -408,7 +468,7 @@ namespace TitleEdit
                         byte newAlpha = (byte) ((fadeTime - sw.ElapsedMilliseconds) / (float) fadeTime * 255);
                         node->Color.A = newAlpha;
                     } while (sw.ElapsedMilliseconds < fadeTime);
-
+            
                     // We still want to hide it at the end, though - reset alpha here
                     if (node == null) return;
                     node->ToggleVisibility(false);
@@ -423,30 +483,30 @@ namespace TitleEdit
             if (addon == null || addon->UldManager.NodeListCount < 2) return;
             var node = addon->UldManager.NodeList[1];
             if (node == null) return;
-
+            
             node->ToggleVisibility(true);
         }
 
         public void SetRevisionStringVisibility(bool state)
         {
-            byte alpha = state ? (byte) 255 : (byte) 0;
-            Task.Run(() =>
-            {
-                // I didn't want to force this, but here we are
-                var sw = Stopwatch.StartNew();
-                while (sw.ElapsedMilliseconds < 5000)
-                {
-                    unsafe
-                    {
-                        var rev = (AtkUnitBase*) _gameGui.GetAddonByName("_TitleRevision", 1);
-                        if (rev == null || rev->UldManager.NodeListCount < 2) continue;
-                        var node = rev->UldManager.NodeList[1];
-                        if (node == null) continue;
-                        node->Color.A = alpha;
-                        Thread.Sleep(250);
-                    }
-                }
-            });
+            // byte alpha = state ? (byte) 255 : (byte) 0;
+            // Task.Run(() =>
+            // {
+            //     // I didn't want to force this, but here we are
+            //     var sw = Stopwatch.StartNew();
+            //     while (sw.ElapsedMilliseconds < 5000)
+            //     {
+            //         unsafe
+            //         {
+            //             var rev = (AtkUnitBase*) _gameGui.GetAddonByName("_TitleRevision", 1);
+            //             if (rev == null || rev->UldManager.NodeListCount < 2) continue;
+            //             var node = rev->UldManager.NodeList[1];
+            //             if (node == null) continue;
+            //             node->Color.A = alpha;
+            //             Thread.Sleep(250);
+            //         }
+            //     }
+            // });
         }
 
         public ushort GetSong()
