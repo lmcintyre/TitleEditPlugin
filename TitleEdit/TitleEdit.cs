@@ -14,7 +14,9 @@ using Dalamud.Game;
 using Dalamud.Game.ClientState;
 using Dalamud.Game.Gui;
 using Dalamud.Hooking;
+using Dalamud.Interface.Internal.Notifications;
 using Dalamud.Logging;
+using Dalamud.Plugin;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Newtonsoft.Json;
 
@@ -25,8 +27,10 @@ namespace TitleEdit
         [UnmanagedFunctionPointer(CallingConvention.ThisCall, CharSet = CharSet.Ansi)]
         private delegate int OnCreateScene(string p1, uint p2, IntPtr p3, uint p4, IntPtr p5, int p6, uint p7);
 
-        private delegate IntPtr OnFixOn(IntPtr self, [MarshalAs(UnmanagedType.LPArray, SizeConst = 3)]
-            float[] cameraPos, [MarshalAs(UnmanagedType.LPArray, SizeConst = 3)]
+        private delegate IntPtr OnFixOn(IntPtr self,
+            [MarshalAs(UnmanagedType.LPArray, SizeConst = 3)]
+            float[] cameraPos,
+            [MarshalAs(UnmanagedType.LPArray, SizeConst = 3)]
             float[] focusPos, float fovY);
 
         [UnmanagedFunctionPointer(CallingConvention.ThisCall, CharSet = CharSet.Ansi)]
@@ -43,6 +47,7 @@ namespace TitleEdit
         private readonly ClientState _clientState;
         private readonly GameGui _gameGui;
         private readonly DataManager _data;
+        private readonly DalamudPluginInterface _pi;
         private readonly TitleEditConfiguration _configuration;
 
         private readonly Hook<OnCreateScene> _createSceneHook;
@@ -72,12 +77,13 @@ namespace TitleEdit
             WeatherId = 2,
             BgmPath = "music/ffxiv/BGM_System_Title.scd"
         };
-        
+
         public TitleEdit(
             SigScanner scanner,
             ClientState clientState,
             GameGui gameGui,
             DataManager data,
+            DalamudPluginInterface pi,
             TitleEditConfiguration configuration,
             string screenDir)
         {
@@ -85,6 +91,7 @@ namespace TitleEdit
             _clientState = clientState;
             _gameGui = gameGui;
             _data = data;
+            _pi = pi;
             _configuration = configuration;
 
             TitleEditAddressResolver.Setup64Bit(scanner);
@@ -95,10 +102,10 @@ namespace TitleEdit
             _createSceneHook = new Hook<OnCreateScene>(TitleEditAddressResolver.CreateScene, HandleCreateScene);
             _playMusicHook = new Hook<OnPlayMusic>(TitleEditAddressResolver.PlayMusic, HandlePlayMusic);
             _fixOnHook = new Hook<OnFixOn>(TitleEditAddressResolver.FixOn, HandleFixOn);
-            _loadLogoResourceHook = new Hook<OnLoadLogoResource>(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
+            _loadLogoResourceHook =
+                new Hook<OnLoadLogoResource>(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
 
             _setTime = Marshal.GetDelegateForFunctionPointer<SetTimePrototype>(TitleEditAddressResolver.SetTime);
-            RefreshCurrentTitleEditScreen();
             PluginLog.Log("TitleEdit hook init finished");
         }
 
@@ -130,7 +137,8 @@ namespace TitleEdit
             var path = Path.Combine(_titleScreenBasePath, toLoad + ".json");
             if (!File.Exists(path))
             {
-                PluginLog.Log($"Title Edit tried to find {path}, but no title file was found, so title settings have been reset.");
+                PluginLog.Log(
+                    $"Title Edit tried to find {path}, but no title file was found, so title settings have been reset.");
                 Fail();
                 return;
             }
@@ -144,8 +152,11 @@ namespace TitleEdit
                 Fail();
                 return;
             }
-            
+
             Log($"Title Edit loaded {path}");
+            
+            if (_configuration.DisplayTitleToast)
+                _pi.UiBuilder.AddNotification($"Now displaying: {_currentScreen.Name}", "Title Edit", NotificationType.Info);
         }
 
         private bool IsScreenValid(TitleEditScreen screen)
@@ -170,7 +181,7 @@ namespace TitleEdit
             _titleCameraNeedsSet = false;
             _amForcingTime = false;
             _amForcingWeather = false;
-            
+
             if (IsLobby(p1))
             {
                 Log("Loading lobby and lobby fixon.");
@@ -178,7 +189,7 @@ namespace TitleEdit
                 FixOn(new Vector3(0, 0, 0), new Vector3(0, 0.8580103f, 0), 1);
                 return returnVal;
             }
-            
+
             if (IsTitleScreen(p1))
             {
                 Log("Loading custom title.");
@@ -189,8 +200,7 @@ namespace TitleEdit
                 _titleCameraNeedsSet = true;
                 ForceWeather(_currentScreen.WeatherId, 5000);
                 ForceTime(_currentScreen.TimeOffset, 5000);
-                Log($"Setting version string visibility to {_configuration.DisplayVersionText}");
-                SetRevisionStringVisibility(_configuration.DisplayVersionText);
+                // SetRevisionStringVisibility(_configuration.DisplayVersionText);
                 return returnVal;
             }
 
@@ -212,10 +222,12 @@ namespace TitleEdit
             float[] focusPos,
             float fovY)
         {
-            Log($"HandleFixOn {self.ToInt64():X} | {cameraPos[0]} {cameraPos[1]} {cameraPos[2]} | {focusPos[0]} {focusPos[1]} {focusPos[2]} | {fovY} | {_titleCameraNeedsSet}");
+            Log(
+                $"HandleFixOn {self.ToInt64():X} | {cameraPos[0]} {cameraPos[1]} {cameraPos[2]} | {focusPos[0]} {focusPos[1]} {focusPos[2]} | {fovY} | {_titleCameraNeedsSet}");
             if (!_titleCameraNeedsSet || _currentScreen == null)
                 return _fixOnHook.Original(self, cameraPos, focusPos, fovY);
-            Log($"HandleFixOn Result {self.ToInt64():X} | {_currentScreen.CameraPos.X} {_currentScreen.CameraPos.Y} {_currentScreen.CameraPos.Z} | {_currentScreen.FixOnPos.X} {_currentScreen.FixOnPos.Y} {_currentScreen.FixOnPos.Z} | {_currentScreen.FovY}");
+            Log(
+                $"HandleFixOn Result {self.ToInt64():X} | {_currentScreen.CameraPos.X} {_currentScreen.CameraPos.Y} {_currentScreen.CameraPos.Z} | {_currentScreen.FixOnPos.X} {_currentScreen.FixOnPos.Y} {_currentScreen.FixOnPos.Z} | {_currentScreen.FovY}");
             _titleCameraNeedsSet = false;
             return _fixOnHook.Original(self,
                 FloatArrayFromVector3(_currentScreen.CameraPos),
@@ -252,20 +264,21 @@ namespace TitleEdit
 
         private ulong HandleLoadLogoResource(IntPtr p1, string p2, int p3, int p4)
         {
-            if (!p2.Contains("Title_Logo") || _currentScreen == null) return _loadLogoResourceHook.Original(p1, p2, p3, p4);
+            if (!p2.Contains("Title_Logo") || _currentScreen == null)
+                return _loadLogoResourceHook.Original(p1, p2, p3, p4);
             Log($"HandleLoadLogoResource {p1.ToInt64():X} {p2} {p3} {p4}");
             ulong result;
-            
+
             var logo = _configuration.SelectedLogoName;
             var display = _configuration.DisplayTitleLogo;
             var over = _configuration.Override;
             var visOver = _configuration.VisibilityOverride;
             if (over == OverrideSetting.UseIfUnspecified && _currentScreen.Logo != "Unspecified")
                 logo = _currentScreen.Logo;
-            
+
             if (visOver == OverrideSetting.UseIfUnspecified && _currentScreen.Logo != "Unspecified")
                 display = _currentScreen.DisplayLogo;
-            
+
             switch (logo)
             {
                 case "A Realm Reborn":
@@ -343,7 +356,7 @@ namespace TitleEdit
                 }
             });
         }
-        
+
         private void ForceWeather(byte weather, int forceTime)
         {
             _amForcingWeather = true;
@@ -357,8 +370,9 @@ namespace TitleEdit
                         SetWeather(weather);
                         Thread.Sleep(20);
                     } while (stop.ElapsedMilliseconds < forceTime && _amForcingWeather);
+
                     Log($"Done forcing weather.");
-                    Log($"Weather is now {GetWeather()}");    
+                    Log($"Weather is now {GetWeather()}");
                 }
                 catch (Exception e)
                 {
@@ -373,7 +387,7 @@ namespace TitleEdit
             unsafe
             {
                 if (TitleEditAddressResolver.WeatherPtr != IntPtr.Zero)
-                    weather = *(byte*) TitleEditAddressResolver.WeatherPtr;
+                    weather = *(byte*)TitleEditAddressResolver.WeatherPtr;
             }
 
             return weather;
@@ -384,47 +398,28 @@ namespace TitleEdit
             unsafe
             {
                 if (TitleEditAddressResolver.WeatherPtr != IntPtr.Zero)
-                    *(byte*) TitleEditAddressResolver.WeatherPtr = weather;
+                    *(byte*)TitleEditAddressResolver.WeatherPtr = weather;
             }
         }
 
         // TODO: Eventually figure out how to do these without excluding free trial players
         private bool IsTitleScreen(string path)
         {
-            return (path == "ex4/05_zon_z5/chr/z5c1/level/z5c1" ||
-                   path == "ex3/05_zon_z4/chr/z4c1/level/z4c1" ||
-                   path == "ex2/05_zon_z3/chr/z3c1/level/z3c1" ||
-                   path == "ex1/05_zon_z2/chr/z2c1/level/z2c1") &&
-                   !IsLobby(path);
+            var ret = (path == "ex4/05_zon_z5/chr/z5c1/level/z5c1" ||
+                       path == "ex3/05_zon_z4/chr/z4c1/level/z4c1" ||
+                       path == "ex2/05_zon_z3/chr/z3c1/level/z3c1" ||
+                       path == "ex1/05_zon_z2/chr/z2c1/level/z2c1" ||
+                       path == "ffxiv/zon_z1/chr/z1c1/level/z1c1") &&
+                      !IsLobby(path);
+            Log($"IsTitleScreen: {ret}");
+            return ret;
         }
 
-        private unsafe bool IsLobby(string path)
+        private bool IsLobby(string path)
         {
-            // In the Lobby, the loaded zone is z1c1, the Bg Selector for
-            // charamake is not visible
-            var bgSelector = (AtkUnitBase*) _gameGui.GetAddonByName("_CharaMakeBgSelector", 1);
-            if (bgSelector != null)
-                Log($"BgSelector visible? {bgSelector->IsVisible}");
-            else
-                Log($"BgSelector null!");
-
-            var titleMenu = (AtkUnitBase*)_gameGui.GetAddonByName("_TitleMenu", 1);
-            if (titleMenu != null)
-                Log($"TitleMenu visible? {titleMenu->IsVisible}");
-            else
-                Log($"TitleMenu null!");
-
-            Log($"Title: {GetState("Title")}");
-            Log($"_TitleLogo: {GetState("_TitleLogo")}");
-            Log($"_TitleMenu: {GetState("_TitleMenu")}");
-            Log($"_TitleRevision: {GetState("_TitleRevision")}");
-            Log($"_TitleRights: {GetState("_TitleRights")}");
-            // Log($"Title: {GetState("Title")}");
-            // Log($"Title: {GetState("Title")}");
-
-            return (bgSelector != null && !bgSelector->IsVisible || bgSelector == null) &&
-                   (titleMenu != null && titleMenu->IsVisible) &&
-                    path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
+            var ret = GetState("CharaSelect") == UiState.Visible && path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
+            Log($"IsLobby: {ret}");
+            return ret;
         }
 
         enum UiState
@@ -452,11 +447,11 @@ namespace TitleEdit
             Task.Delay(delay).ContinueWith(_ =>
             {
                 Log($"Logo task running after {delay} delay");
-                var addon = (AtkUnitBase*) _gameGui.GetAddonByName("_TitleLogo", 1);
+                var addon = (AtkUnitBase*)_gameGui.GetAddonByName("_TitleLogo", 1);
                 if (addon == null || addon->UldManager.NodeListCount < 2) return;
                 var node = addon->UldManager.NodeList[1];
                 if (node == null) return;
-            
+
                 // The user has probably seen the logo by now, so don't abruptly hide it - be graceful
                 if (delay > 1000)
                 {
@@ -465,10 +460,10 @@ namespace TitleEdit
                     do
                     {
                         if (node == null) continue;
-                        byte newAlpha = (byte) ((fadeTime - sw.ElapsedMilliseconds) / (float) fadeTime * 255);
+                        byte newAlpha = (byte)((fadeTime - sw.ElapsedMilliseconds) / (float)fadeTime * 255);
                         node->Color.A = newAlpha;
                     } while (sw.ElapsedMilliseconds < fadeTime);
-            
+
                     // We still want to hide it at the end, though - reset alpha here
                     if (node == null) return;
                     node->ToggleVisibility(false);
@@ -479,35 +474,38 @@ namespace TitleEdit
 
         public unsafe void EnableTitleLogo()
         {
-            var addon = (AtkUnitBase*) _gameGui.GetAddonByName("_TitleLogo", 1);
+            var addon = (AtkUnitBase*)_gameGui.GetAddonByName("_TitleLogo", 1);
             if (addon == null || addon->UldManager.NodeListCount < 2) return;
             var node = addon->UldManager.NodeList[1];
             if (node == null) return;
-            
+
             node->ToggleVisibility(true);
         }
 
-        public void SetRevisionStringVisibility(bool state)
-        {
-            // byte alpha = state ? (byte) 255 : (byte) 0;
-            // Task.Run(() =>
-            // {
-            //     // I didn't want to force this, but here we are
-            //     var sw = Stopwatch.StartNew();
-            //     while (sw.ElapsedMilliseconds < 5000)
-            //     {
-            //         unsafe
-            //         {
-            //             var rev = (AtkUnitBase*) _gameGui.GetAddonByName("_TitleRevision", 1);
-            //             if (rev == null || rev->UldManager.NodeListCount < 2) continue;
-            //             var node = rev->UldManager.NodeList[1];
-            //             if (node == null) continue;
-            //             node->Color.A = alpha;
-            //             Thread.Sleep(250);
-            //         }
-            //     }
-            // });
-        }
+        // public void SetRevisionStringVisibility(bool state)
+        // {
+        //     Log($"Setting version string visibility to {state}");
+        //     byte alpha = state ? (byte)255 : (byte)0;
+        //     Task.Run(() =>
+        //     {
+        //         // I didn't want to force this, but here we are
+        //         var sw = Stopwatch.StartNew();
+        //         while (sw.ElapsedMilliseconds < 5000)
+        //         {
+        //             unsafe
+        //             {
+        //                 var rev = (AtkUnitBase*)_gameGui.GetAddonByName("_TitleRevision", 1);
+        //                 if (rev == null || rev->UldManager.NodeListCount < 2) continue;
+        //                 var node = rev->UldManager.NodeList[1];
+        //                 if (node == null) continue;
+        //                 // node->Color.A = alpha;
+        //                 node->ToggleVisibility(false);
+        //                 Thread.Sleep(250);
+        //             }
+        //         }
+        //         Log("Done forcing revision string.");
+        //     });
+        // }
 
         public ushort GetSong()
         {
@@ -521,7 +519,7 @@ namespace TitleEdit
 
                 unsafe
                 {
-                    var readPoint = (ushort*) bgmControl.ToPointer();
+                    var readPoint = (ushort*)bgmControl.ToPointer();
                     readPoint += 6;
 
                     for (int activePriority = 0; activePriority < 12; activePriority++)
@@ -554,45 +552,45 @@ namespace TitleEdit
             return ret;
         }
 
-        // This can be used to find new title screen (lol) logo animation lengths
-        // public void LogLogoVisible()
-        // {
-        //     int logoResNode1Offset = 200;
-        //     int logoResNode2Offset = 56;
-        //     int logoResNodeFlagOffset = 0x9E;
-        //     ushort visibleFlag = 0x10;
-        //
-        //     ushort flagVal;
-        //     var start = Stopwatch.StartNew();
-        //
-        //     do
-        //     {
-        //         IntPtr flag = _gameGui.GetAddonByName("_TitleLogo", 1);
-        //         if (flag == IntPtr.Zero) continue;
-        //         flag = Marshal.ReadIntPtr(flag, logoResNode1Offset);
-        //         if (flag == IntPtr.Zero) continue;
-        //         flag = Marshal.ReadIntPtr(flag, logoResNode2Offset);
-        //         if (flag == IntPtr.Zero) continue;
-        //         flag += logoResNodeFlagOffset;
-        //
-        //         unsafe
-        //         {
-        //             flagVal = *(ushort*) flag.ToPointer();
-        //             if ((flagVal & visibleFlag) == visibleFlag)
-        //                 PluginLog.Log($"visible: {(flagVal & visibleFlag) == visibleFlag} | {start.ElapsedMilliseconds}");
-        //             
-        //             // arr: 59
-        //             // arrft: 61
-        //             // hw: 57
-        //             // sb: 2060
-        //             // shb: 2060
-        //             // ew: 10500
-        //             *(ushort*) flag.ToPointer() = (ushort) (flagVal & ~visibleFlag);
-        //         }
-        //     } while (start.ElapsedMilliseconds < 15000);
-        //
-        //     start.Stop();
-        // }
+// This can be used to find new title screen (lol) logo animation lengths
+// public void LogLogoVisible()
+// {
+//     int logoResNode1Offset = 200;
+//     int logoResNode2Offset = 56;
+//     int logoResNodeFlagOffset = 0x9E;
+//     ushort visibleFlag = 0x10;
+//
+//     ushort flagVal;
+//     var start = Stopwatch.StartNew();
+//
+//     do
+//     {
+//         IntPtr flag = _gameGui.GetAddonByName("_TitleLogo", 1);
+//         if (flag == IntPtr.Zero) continue;
+//         flag = Marshal.ReadIntPtr(flag, logoResNode1Offset);
+//         if (flag == IntPtr.Zero) continue;
+//         flag = Marshal.ReadIntPtr(flag, logoResNode2Offset);
+//         if (flag == IntPtr.Zero) continue;
+//         flag += logoResNodeFlagOffset;
+//
+//         unsafe
+//         {
+//             flagVal = *(ushort*) flag.ToPointer();
+//             if ((flagVal & visibleFlag) == visibleFlag)
+//                 PluginLog.Log($"visible: {(flagVal & visibleFlag) == visibleFlag} | {start.ElapsedMilliseconds}");
+//             
+//             // arr: 59
+//             // arrft: 61
+//             // hw: 57
+//             // sb: 2060
+//             // shb: 2060
+//             // ew: 10500
+//             *(ushort*) flag.ToPointer() = (ushort) (flagVal & ~visibleFlag);
+//         }
+//     } while (start.ElapsedMilliseconds < 15000);
+//
+//     start.Stop();
+// }
 
         private void Log(string s)
         {

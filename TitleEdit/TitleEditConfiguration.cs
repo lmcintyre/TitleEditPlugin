@@ -22,6 +22,7 @@ namespace TitleEdit
         public bool DisplayVersionText { get; set; } = true;
         public OverrideSetting Override { get; set; } = OverrideSetting.UseIfUnspecified;
         public OverrideSetting VisibilityOverride { get; set; } = OverrideSetting.UseIfUnspecified;
+        public bool DisplayTitleToast { get; set; }
         public bool DebugLogging { get; set; }
 
         int IPluginConfiguration.Version { get; set; } = 2;

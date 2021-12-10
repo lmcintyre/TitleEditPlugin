@@ -133,7 +133,7 @@ namespace TitleEdit
                 .ToDictionary(row => (ushort) row.RowId, row => row.File.ToString());
             _bgmSheet = new BgmSheetManager(_titleScreenFolder, bgms);
             
-            _titleEdit = new TitleEdit(sigScanner, clientState, gameGui, dataManager, _configuration, _titleScreenFolder);
+            _titleEdit = new TitleEdit(sigScanner, clientState, gameGui, dataManager, _pluginInterface, _configuration, _titleScreenFolder);
             _titleEdit.Enable();
 
             _pluginInterface.UiBuilder.Draw += UiBuilder_OnBuildUi;
@@ -891,14 +891,17 @@ namespace TitleEdit
             if (ImGui.Checkbox("Enable debug logging", ref debugLogging))
                 _configuration.DebugLogging = debugLogging;
             
-            bool displayVersion = _configuration.DisplayVersionText;
-            if (ImGui.Checkbox("Show FFXIV version text on title screen", ref displayVersion))
-            {
-                _configuration.DisplayVersionText = displayVersion;
-                _titleEdit.SetRevisionStringVisibility(displayVersion);
-            }
-                
-
+            // bool displayVersion = _configuration.DisplayVersionText;
+            // if (ImGui.Checkbox("Show FFXIV version text on title screen", ref displayVersion))
+            // {
+                // _configuration.DisplayVersionText = displayVersion;
+                // _titleEdit.SetRevisionStringVisibility(displayVersion);
+            // }
+            
+            bool displayToast = _configuration.DisplayTitleToast;
+            if (ImGui.Checkbox("Display the name of the current screen when loaded", ref displayToast))
+                _configuration.DisplayTitleToast = displayToast;
+            
             ImGui.EndChild();
 
             if (!canSave)
