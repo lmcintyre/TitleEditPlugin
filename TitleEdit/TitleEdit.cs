@@ -405,20 +405,33 @@ namespace TitleEdit
         // TODO: Eventually figure out how to do these without excluding free trial players
         private bool IsTitleScreen(string path)
         {
-            var ret = (path == "ex4/05_zon_z5/chr/z5c1/level/z5c1" ||
-                       path == "ex3/05_zon_z4/chr/z4c1/level/z4c1" ||
-                       path == "ex2/05_zon_z3/chr/z3c1/level/z3c1" ||
-                       path == "ex1/05_zon_z2/chr/z2c1/level/z2c1" ||
-                       path == "ffxiv/zon_z1/chr/z1c1/level/z1c1") &&
-                      !IsLobby(path);
+            var ret = 
+                (path == "ex4/05_zon_z5/chr/z5c1/level/z5c1"
+                 || path == "ex3/05_zon_z4/chr/z4c1/level/z4c1"
+                 || path == "ex2/05_zon_z3/chr/z3c1/level/z3c1"
+                 || path == "ex1/05_zon_z2/chr/z2c1/level/z2c1"
+                 || path == "ffxiv/zon_z1/chr/z1c1/level/z1c1")
+                && !IsLobby(path)
+                && !IsCharaMake(path);
             Log($"IsTitleScreen: {ret}");
             return ret;
         }
 
         private bool IsLobby(string path)
         {
-            var ret = GetState("CharaSelect") == UiState.Visible && path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
+            var ret = 
+                GetState("CharaSelect") == UiState.Visible
+                && path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
             Log($"IsLobby: {ret}");
+            return ret;
+        }
+
+        private bool IsCharaMake(string path)
+        {
+            var ret = 
+                GetState("_CharaMakeBgSelector") == UiState.Visible
+                && path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
+            Log($"IsCharaMake: {ret}");
             return ret;
         }
 
@@ -431,13 +444,15 @@ namespace TitleEdit
 
         private unsafe UiState GetState(string uiName)
         {
+            Log($"GetState({uiName})");
             var ui = (AtkUnitBase*)_gameGui.GetAddonByName(uiName, 1);
+            var ret = UiState.Null;
             if (ui != null)
             {
-                return ui->IsVisible ? UiState.Visible : UiState.NotNull;
+                ret = ui->IsVisible ? UiState.Visible : UiState.NotNull;
             }
-
-            return UiState.Null;
+            Log($"GetState({uiName}): {ret}");
+            return ret;
         }
 
         public unsafe void DisableTitleLogo(int delay = 2001)
