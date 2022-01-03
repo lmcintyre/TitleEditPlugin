@@ -28,6 +28,7 @@ namespace TitleEdit
         public static IntPtr PlayMusic { get; private set; }
         public static IntPtr BgmControl { get; private set; }
         public static IntPtr WeatherPtrBase { get; private set; }
+        public static IntPtr LoadTitleScreenAssets { get; private set; }
 
         public static void Setup64Bit(SigScanner sig)
         {
@@ -39,6 +40,7 @@ namespace TitleEdit
             PlayMusic = sig.ScanText("E8 ?? ?? ?? ?? 48 89 47 18 89 5F 20");
             BgmControl = sig.GetStaticAddressFromSig("48 8B 05 ?? ?? ?? ?? 48 85 C0 74 37 83 78 08 04", 2);
             WeatherPtrBase = sig.GetStaticAddressFromSig("40 55 41 56 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 20 48 8B 15 ?? ?? ?? ?? 4C 8B F1 48 0F BE 42 ?? 85 C0 78 05 83 F8 20 72 0E", 0x25);
+            LoadTitleScreenAssets = sig.ScanText("48 89 5C 24 ?? 57 48 83 EC 20 49 8B D8 48 8B F9 E8 ?? ?? ?? ?? 41 B8 ?? ?? ?? ??");
         }
     }
 }

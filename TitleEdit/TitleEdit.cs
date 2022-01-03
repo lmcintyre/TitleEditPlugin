@@ -39,6 +39,9 @@ namespace TitleEdit
         [UnmanagedFunctionPointer(CallingConvention.ThisCall, CharSet = CharSet.Ansi)]
         private delegate IntPtr OnPlayMusic(IntPtr self, string filename, float volume, uint fadeTime);
 
+        [UnmanagedFunctionPointer(CallingConvention.ThisCall, CharSet = CharSet.Ansi)]
+        private delegate void OnLoadTitleScreenAssets(IntPtr p1, IntPtr p2, IntPtr p3);
+
         private delegate void SetTimePrototype(ushort timeOffset);
 
         // The size of the BGMControl object
@@ -54,6 +57,7 @@ namespace TitleEdit
         private readonly Hook<OnPlayMusic> _playMusicHook;
         private readonly Hook<OnFixOn> _fixOnHook;
         private readonly Hook<OnLoadLogoResource> _loadLogoResourceHook;
+        private readonly Hook<OnLoadTitleScreenAssets> _loadTitleScreenAssetsHook;
 
         private readonly SetTimePrototype _setTime;
 
@@ -75,7 +79,11 @@ namespace TitleEdit
             FixOnPos = new Vector3(0, 1.0f, 0),
             FovY = 45f,
             WeatherId = 2,
-            BgmPath = "music/ffxiv/BGM_System_Title.scd"
+            BgmPath = "music/ffxiv/BGM_System_Title.scd",
+            VersionTextColor = new Vector4(0.0f, 153.0f, 255.0f, 255.0f),
+            CopyrightTextColor = new Vector4(0.0f, 153.0f, 255.0f, 255.0f),
+            ButtonTextColor = new Vector4(0.0f, 153.0f, 255.0f, 255.0f),
+            ButtonHighlightColor = new Vector4(0.0f, 127.0f, 219.0f, 255.0f)
         };
 
         public TitleEdit(
@@ -104,6 +112,8 @@ namespace TitleEdit
             _fixOnHook = new Hook<OnFixOn>(TitleEditAddressResolver.FixOn, HandleFixOn);
             _loadLogoResourceHook =
                 new Hook<OnLoadLogoResource>(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
+            _loadTitleScreenAssetsHook 
+                = new Hook<OnLoadTitleScreenAssets>(TitleEditAddressResolver.LoadTitleScreenAssets, HandleLoadTitleScreenAssets);
 
             _setTime = Marshal.GetDelegateForFunctionPointer<SetTimePrototype>(TitleEditAddressResolver.SetTime);
             PluginLog.Log("TitleEdit hook init finished");
@@ -317,8 +327,25 @@ namespace TitleEdit
             return result;
         }
 
+        private void HandleLoadTitleScreenAssets(IntPtr p1, IntPtr p2, IntPtr p3)
+        {
+            Log("LoadTitleScreenAssets Call");
+            _loadTitleScreenAssetsHook.Original(p1, p2, p3);
+
+            //Find a better hook? idk  
+            Task.Run(() =>
+            {
+                for(int i = 0; i < 5; i++)
+                {
+                    Thread.Sleep(50);
+                    SetTextColors();
+                }               
+            });      
+        }
+
         public void Enable()
         {
+            _loadTitleScreenAssetsHook.Enable();
             _loadLogoResourceHook.Enable();
             _createSceneHook.Enable();
             _playMusicHook.Enable();
@@ -327,6 +354,7 @@ namespace TitleEdit
 
         public void Dispose()
         {
+            _loadTitleScreenAssetsHook.Dispose();
             _loadLogoResourceHook.Dispose();
             _createSceneHook.Dispose();
             _playMusicHook.Dispose();
@@ -521,6 +549,82 @@ namespace TitleEdit
         //         Log("Done forcing revision string.");
         //     });
         // }
+
+
+        public void SetTextColors()
+        {
+            Log($"Setting title screen colors.");
+            unsafe
+            {
+                var menus = new string[] { "_TitleMenu", "_TitleRevision", "_TitleRights" };
+                for (int menuIndex = 0; menuIndex < menus.Length; menuIndex++)
+                {
+                    var rev = (AtkUnitBase*)_gameGui.GetAddonByName(menus[menuIndex], 1);
+
+                    if (rev == null)
+                        continue;
+
+                    for (int i = 0; i < rev->UldManager.NodeListCount; i++)
+                    {
+                        var node = rev->UldManager.NodeList[i];
+
+                        if (node->Type == NodeType.Text && menuIndex > 0)
+                        {
+                            var textNode = node->GetAsAtkTextNode();
+
+                            Vector4? glow_color = null;
+                            switch (menuIndex)
+                            {
+                                case 1:
+                                    glow_color = _currentScreen.VersionTextColor;
+                                    break;
+                                case 2:
+                                    glow_color = _currentScreen.CopyrightTextColor;
+                                    break;
+                            }
+
+                            if (glow_color != null)
+                            {
+                                textNode->EdgeColor.A = (byte)glow_color.Value.W;
+                                textNode->EdgeColor.R = (byte)glow_color.Value.X;
+                                textNode->EdgeColor.G = (byte)glow_color.Value.Y;
+                                textNode->EdgeColor.B = (byte)glow_color.Value.Z;
+
+                                node->Color.A = (byte)glow_color.Value.W;
+                            }
+                        }
+                        else if ((int)node->Type == 1001 && menuIndex == 0) //Menu buttons use this type
+                        {
+                            var comp = (AtkComponentNode*)node;
+                            for (int a = 0; a < comp->Component->UldManager.NodeListCount; a++)
+                            {
+                                var no = comp->Component->UldManager.NodeList[a];
+                                if (no->Type == NodeType.Text && _currentScreen.ButtonTextColor != null) //The button text
+                                {
+                                    var tNode = no->GetAsAtkTextNode();
+                                    tNode->EdgeColor.A = (byte)_currentScreen.ButtonTextColor.Value.W;
+                                    tNode->EdgeColor.R = (byte)_currentScreen.ButtonTextColor.Value.X;
+                                    tNode->EdgeColor.G = (byte)_currentScreen.ButtonTextColor.Value.Y;
+                                    tNode->EdgeColor.B = (byte)_currentScreen.ButtonTextColor.Value.Z;
+
+                                    no->Color.A = (byte)_currentScreen.ButtonTextColor.Value.W;
+                                }
+                                else if (no->Type == NodeType.NineGrid && _currentScreen.ButtonHighlightColor != null) //The button background
+                                {
+                                    //#007fe0 - Approximation of the texture color of the highlight, the game modifies the color by correcting it with Add
+                                    no->AddRed = no->AddRed_2 = (ushort)_currentScreen.ButtonHighlightColor.Value.X;
+                                    no->AddGreen = no->AddGreen_2 = (ushort)((int)_currentScreen.ButtonHighlightColor.Value.Y - (int)0x7F);
+                                    no->AddBlue = no->AddBlue_2 = (ushort)((int)_currentScreen.ButtonHighlightColor.Value.Z - (int)0xE0);
+
+                                    no->Color.A = (byte)_currentScreen.ButtonHighlightColor.Value.W;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Log("Done setting title screen colors.");
+        }
 
         public ushort GetSong()
         {

@@ -82,6 +82,10 @@ namespace TitleEdit
         private string _terriPath = "";
         private ushort _lastBgmId;
         private string _songDescription = ""; // This is global so we don't have to do text size calc every frame
+        private Vector4 _versionTextColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+        private Vector4 _copyrightTextColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+        private Vector4 _buttonTextColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+        private Vector4 _buttonHighlightColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 
         private Dictionary<uint, TerritoryType> _territoryPaths;
         private Dictionary<uint, string> _weathers;
@@ -488,6 +492,17 @@ namespace TitleEdit
                     var scaled = _tsTimeMin / 60f * 100;
                     _tsTimeOffset = (int) (_tsTimeHrs * 100 + scaled % 100);
                 }
+                ImGui.ColorEdit4("Version text color", ref _versionTextColor,
+                    ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreview);
+
+                ImGui.ColorEdit4("Copyright text color", ref _copyrightTextColor, 
+                    ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreview);
+
+                ImGui.ColorEdit4("Button text color", ref _buttonTextColor, 
+                    ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreview);
+
+                ImGui.ColorEdit4("Button highlight color", ref _buttonHighlightColor, 
+                    ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreview);
             }
 
 #if DEBUG
@@ -537,6 +552,11 @@ namespace TitleEdit
                 scr.WeatherId = (byte) _weatherId;
                 scr.TimeOffset = (ushort) _tsTimeOffset;
                 scr.BgmPath = selectedBgm.FilePath;
+                scr.VersionTextColor = _versionTextColor * 255.0f;
+                scr.CopyrightTextColor = _copyrightTextColor * 255.0f;
+                scr.ButtonTextColor = _buttonTextColor * 255.0f;
+                scr.ButtonHighlightColor = _buttonHighlightColor * 255.0f;
+
                 var text = JsonConvert.SerializeObject(scr, Formatting.Indented);
                 bool createSuccess = false;
                 try

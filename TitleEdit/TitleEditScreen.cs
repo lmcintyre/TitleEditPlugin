@@ -14,5 +14,9 @@ namespace TitleEdit
         public byte WeatherId;
         public ushort TimeOffset;
         public string BgmPath;
+        public Vector4? VersionTextColor;
+        public Vector4? CopyrightTextColor;
+        public Vector4? ButtonTextColor;
+        public Vector4? ButtonHighlightColor;
     }
 }

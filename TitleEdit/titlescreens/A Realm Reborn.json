@@ -1,19 +1,43 @@
 {
-    "Name": "A Realm Reborn",
-    "TerritoryPath": "ffxiv/zon_z1/chr/z1c1/level/z1c1",
-    "Logo": "A Realm Reborn",
-    "DisplayLogo": "True",
-    "CameraPos": {
-      "X": 0.0,
-      "Y": 0.5,
-      "Z": -1.3
-    },
-    "FixOnPos": {
-      "X": 0.0,
-      "Y": 1.0,
-      "Z": 0.0
-    },
-    "FovY": 45.0,
-    "WeatherId": 2,
-    "BgmPath": "music/ffxiv/BGM_System_Title.scd"
+  "Name": "A Realm Reborn",
+  "TerritoryPath": "ffxiv/zon_z1/chr/z1c1/level/z1c1",
+  "Logo": "A Realm Reborn",
+  "DisplayLogo": "True",
+  "CameraPos": {
+    "X": 0.0,
+    "Y": 0.5,
+    "Z": -1.3
+  },
+  "FixOnPos": {
+    "X": 0.0,
+    "Y": 1.0,
+    "Z": 0.0
+  },
+  "FovY": 45.0,
+  "WeatherId": 2,
+  "BgmPath": "music/ffxiv/BGM_System_Title.scd",
+  "VersionTextColor": {
+    "X": 0.0,
+    "Y": 153.0,
+    "Z": 255.0,
+    "W": 255.0
+  },
+  "CopyrightTextColor": {
+    "X": 0.0,
+    "Y": 153.0,
+    "Z": 255.0,
+    "W": 255.0
+  },
+  "ButtonTextColor": {
+    "X": 0.0,
+    "Y": 153.0,
+    "Z": 255.0,
+    "W": 255.0
+  },
+  "ButtonHighlightColor": {
+    "X": 0.0,
+    "Y": 127.0,
+    "Z": 219.0,
+    "W": 255.0
   }
+}
