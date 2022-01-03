@@ -237,7 +237,7 @@ namespace TitleEdit
             if (!_isImguiTitleEditOpen)
                 return;
 
-            ImGui.SetNextWindowSize(new Vector2(GuiScale(480), GuiScale(530)));
+            ImGui.SetNextWindowSize(new Vector2(GuiScale(480), GuiScale(580)));
             ImGui.Begin("Title Editing", ref _isImguiTitleEditOpen, ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
             ImGui.BeginTabBar("TitleEditMainTabBar");
             DrawCreation();
@@ -261,9 +261,9 @@ namespace TitleEdit
             ImGui.Text("This tab allows you to create a custom title screen.");
             ImGui.Text("It is recommended to use first-person view.");
 #if DEBUG
-            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(400)), true, ImGuiWindowFlags.NoScrollbar);
+            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(450)), true, ImGuiWindowFlags.NoScrollbar);
 #else
-            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(400)), true, ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoScrollbar);
+            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(450)), true, ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoScrollbar);
 #endif
             bool stateInvalid;
             BgmInfo selectedBgm = new BgmInfo {Title = "Unknown", FilePath = ""};
