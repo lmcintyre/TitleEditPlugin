@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Mime;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -13,10 +14,12 @@ using Dalamud.Game.ClientState;
 using Dalamud.Game.ClientState.Keys;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui;
+using Dalamud.Interface;
 using Dalamud.IoC;
 using Dalamud.Logging;
 using Dalamud.Plugin;
 using ImGuiNET;
+using ImGuiScene;
 using Lumina.Excel.GeneratedSheets;
 using Newtonsoft.Json;
 using SharpDX;
@@ -92,6 +95,7 @@ namespace TitleEdit
         private ClientState _clientState;
         private Framework _framework;
         private KeyState _keyState;
+        // private TitleScreenMenu _titleScreenMenu;
 
         public TitleEditPlugin(
             [RequiredVersion("1.0")] DalamudPluginInterface pluginInterface,
@@ -101,7 +105,8 @@ namespace TitleEdit
             [RequiredVersion("1.0")] Framework framework,
             [RequiredVersion("1.0")] KeyState keyState,
             [RequiredVersion("1.0")] SigScanner sigScanner,
-            [RequiredVersion("1.0")] GameGui gameGui)
+            [RequiredVersion("1.0")] GameGui gameGui,
+            [RequiredVersion("1.0")] TitleScreenMenu titleScreenMenu)
         {
             PluginLog.Log("===== T I T L E E D I T =====");
             _pluginInterface = pluginInterface;
@@ -110,7 +115,26 @@ namespace TitleEdit
             _clientState = clientState;
             _framework = framework;
             _keyState = keyState;
-
+            
+            // Load menu_icon.png from dll resources
+            var assembly = Assembly.GetExecutingAssembly();
+            var resourceStream = assembly.GetManifestResourceStream("TitleEdit.menu_icon.png");
+            if (resourceStream != null)
+            {
+                var imageBytes = new byte[resourceStream.Length];
+                resourceStream.Read(imageBytes, 0, (int) resourceStream.Length);
+                PluginLog.Information($"image is {imageBytes.Length} bytes");
+                try
+                {
+                    var image = pluginInterface.UiBuilder.LoadImage(imageBytes);
+                    titleScreenMenu.AddEntry("Title Edit Menu", image, () => { _isImguiTitleEditOpen = true; });
+                }
+                catch (Exception e)
+                {
+                    PluginLog.Error(e, "Title Edit encountered an error loading menu icon");
+                }
+            }           
+            
             _commandManager.AddHandler(TitleEditCommand, new CommandInfo(OnTitleEditCommand)
             {
                 HelpMessage = "Display the Title Edit configuration interface."
@@ -1016,7 +1040,6 @@ namespace TitleEdit
         {
             _titleEdit?.Dispose();
             _commandManager.RemoveHandler(TitleEditCommand);
-            _pluginInterface.Dispose();
         }
     }
 }
