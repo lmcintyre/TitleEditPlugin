@@ -24,21 +24,14 @@ namespace TitleEdit
 {
     public class TitleEdit
     {
-        [UnmanagedFunctionPointer(CallingConvention.ThisCall, CharSet = CharSet.Ansi)]
         private delegate int OnCreateScene(string p1, uint p2, IntPtr p3, uint p4, IntPtr p5, int p6, uint p7);
-
         private delegate IntPtr OnFixOn(IntPtr self,
             [MarshalAs(UnmanagedType.LPArray, SizeConst = 3)]
             float[] cameraPos,
             [MarshalAs(UnmanagedType.LPArray, SizeConst = 3)]
             float[] focusPos, float fovY);
-
-        [UnmanagedFunctionPointer(CallingConvention.ThisCall, CharSet = CharSet.Ansi)]
         private delegate ulong OnLoadLogoResource(IntPtr p1, string p2, int p3, int p4);
-
-        [UnmanagedFunctionPointer(CallingConvention.ThisCall, CharSet = CharSet.Ansi)]
         private delegate IntPtr OnPlayMusic(IntPtr self, string filename, float volume, uint fadeTime);
-
         private delegate void SetTimePrototype(ushort timeOffset);
 
         // The size of the BGMControl object
