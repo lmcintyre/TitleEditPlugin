@@ -88,7 +88,6 @@ namespace TitleEdit
             _configuration = configuration;
 
             TitleEditAddressResolver.Setup64Bit(scanner);
-            FFXIVClientStructs.Resolver.Initialize();
 
             _titleScreenBasePath = screenDir;
 
