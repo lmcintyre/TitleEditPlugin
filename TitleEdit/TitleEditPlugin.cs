@@ -3,9 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Mime;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Dalamud.Data;
@@ -19,7 +17,6 @@ using Dalamud.IoC;
 using Dalamud.Logging;
 using Dalamud.Plugin;
 using ImGuiNET;
-using ImGuiScene;
 using Lumina.Excel.GeneratedSheets;
 using Newtonsoft.Json;
 using SharpDX;
@@ -56,7 +53,7 @@ namespace TitleEdit
         private bool _fileWasCreatedRecently;
         private ushort _lastTerritoryId;
         private ushort[] _territoryWeathers;
-        private float _widestScreenName;
+        private float _widestScreenName = 0f;
 
         // Import values
         private TitleEditScreen _importExistsScreen;
@@ -214,13 +211,6 @@ namespace TitleEdit
                 removeList.Remove(removeList[0]);
             }
 
-            foreach (var title in _titleScreens)
-            {
-                var size = ImGui.CalcTextSize(title).X;
-                if (size > _widestScreenName)
-                    _widestScreenName = size;
-            }
-            
             // Update our selected indices because we modified the collections
             _selectedTitleIndex = GetIndexOfSelectedTitle();
             _selectedLogoIndex = GetIndexOfSelectedLogo();
@@ -719,6 +709,16 @@ namespace TitleEdit
                     ImGui.TextColored(new Vector4(1, 0, 0, 1), $"Failed to import {_importError}. Please check the log!");
             }
 
+            if (_widestScreenName == 0)
+            {
+                foreach (var title in _titleScreens)
+                {
+                    var size = ImGui.CalcTextSize(title).X;
+                    if (size > _widestScreenName)
+                        _widestScreenName = size;
+                }
+            }
+            
             if (ImGui.CollapsingHeader("Installed Screens"))
             {
                 var width = GuiScale(_widestScreenName + 100);
