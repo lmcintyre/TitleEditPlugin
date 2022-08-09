@@ -91,11 +91,11 @@ namespace TitleEdit
 
             _titleScreenBasePath = screenDir;
 
-            _createSceneHook = new Hook<OnCreateScene>(TitleEditAddressResolver.CreateScene, HandleCreateScene);
-            _playMusicHook = new Hook<OnPlayMusic>(TitleEditAddressResolver.PlayMusic, HandlePlayMusic);
-            _fixOnHook = new Hook<OnFixOn>(TitleEditAddressResolver.FixOn, HandleFixOn);
+            _createSceneHook = Hook<OnCreateScene>.FromAddress(TitleEditAddressResolver.CreateScene, HandleCreateScene);
+            _playMusicHook = Hook<OnPlayMusic>.FromAddress(TitleEditAddressResolver.PlayMusic, HandlePlayMusic);
+            _fixOnHook = Hook<OnFixOn>.FromAddress(TitleEditAddressResolver.FixOn, HandleFixOn);
             _loadLogoResourceHook =
-                new Hook<OnLoadLogoResource>(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
+                Hook<OnLoadLogoResource>.FromAddress(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
 
             _setTime = Marshal.GetDelegateForFunctionPointer<SetTimePrototype>(TitleEditAddressResolver.SetTime);
             PluginLog.Log("TitleEdit hook init finished");
