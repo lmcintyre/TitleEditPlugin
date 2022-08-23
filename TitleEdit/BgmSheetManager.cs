@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Dalamud.Logging;
 
@@ -69,10 +70,10 @@ namespace TitleEdit
         private void UpdateSheet()
         {
             var destination = _pluginConfigFolder + "\\" + Filename;
-            using var client = new WebClient();
+            using var client = new HttpClient();
             try
             {
-                var newText = client.DownloadString(SheetPath);
+                var newText = client.GetStringAsync(SheetPath).Result;
                 if (File.Exists(destination))
                 {
                     string existingText = File.ReadAllText(destination);
