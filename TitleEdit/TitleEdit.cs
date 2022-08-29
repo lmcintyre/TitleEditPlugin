@@ -32,8 +32,6 @@ namespace TitleEdit
             float[] focusPos, float fovY);
         private delegate ulong OnLoadLogoResource(IntPtr p1, string p2, int p3, int p4);
         private delegate IntPtr OnPlayMusic(IntPtr self, string filename, float volume, uint fadeTime);
-
-        [UnmanagedFunctionPointer(CallingConvention.ThisCall, CharSet = CharSet.Ansi)]
         private delegate void OnLoadTitleScreenAssets(IntPtr p1, IntPtr p2, IntPtr p3);
 
         private delegate void SetTimePrototype(ushort timeOffset);
@@ -103,11 +101,8 @@ namespace TitleEdit
             _createSceneHook = Hook<OnCreateScene>.FromAddress(TitleEditAddressResolver.CreateScene, HandleCreateScene);
             _playMusicHook = Hook<OnPlayMusic>.FromAddress(TitleEditAddressResolver.PlayMusic, HandlePlayMusic);
             _fixOnHook = Hook<OnFixOn>.FromAddress(TitleEditAddressResolver.FixOn, HandleFixOn);
-            _loadLogoResourceHook =
-                Hook<OnLoadLogoResource>.FromAddress(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
-                new Hook<OnLoadLogoResource>(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
-            _loadTitleScreenAssetsHook 
-                = new Hook<OnLoadTitleScreenAssets>(TitleEditAddressResolver.LoadTitleScreenAssets, HandleLoadTitleScreenAssets);
+            _loadLogoResourceHook = Hook<OnLoadLogoResource>.FromAddress(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
+            _loadTitleScreenAssetsHook = Hook<OnLoadTitleScreenAssets>.FromAddress(TitleEditAddressResolver.LoadTitleScreenAssets, HandleLoadTitleScreenAssets);
 
             _setTime = Marshal.GetDelegateForFunctionPointer<SetTimePrototype>(TitleEditAddressResolver.SetTime);
             PluginLog.Log("TitleEdit hook init finished");
