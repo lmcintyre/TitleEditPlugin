@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
-        <PluginVersion>2.2.6.7</PluginVersion>
+        <PluginVersion>2.2.6.8</PluginVersion>
     </PropertyGroup>
     <PropertyGroup>
         <TargetFramework>net6.0-windows</TargetFramework>
@@ -135,7 +135,7 @@
         </Content>
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="DalamudPackager" Version="2.1.8" />
+        <PackageReference Include="DalamudPackager" Version="2.1.9" />
     </ItemGroup>
     <ItemGroup>
       <EmbeddedResource Include="menu_icon.png" />
