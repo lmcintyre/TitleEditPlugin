@@ -181,8 +181,14 @@ namespace TitleEdit
                 FixOn(new Vector3(0, 0, 0), new Vector3(0, 0.8580103f, 0), 1);
                 return returnVal;
             }
+            
+            Log("---------------");
+            Log($"_ScreenText is {GetState("_ScreenText")}");
+            Log($"Title is {GetState("Title")}");
+            Log($"_TitleRevision is {GetState("_TitleRevision")}");
+            Log("---------------");
 
-            if (IsTitleScreen(p1))
+            if (IsTitleScreen(p1) && GetState("_ScreenText") != UiState.Null)
             {
                 Log("Loading custom title.");
                 RefreshCurrentTitleEditScreen();
@@ -226,20 +232,6 @@ namespace TitleEdit
                 FloatArrayFromVector3(_currentScreen.FixOnPos),
                 _currentScreen.FovY);
             // return _fixOnHook.Original(self, cameraPos, focusPos, fovY);
-        }
-
-        public TitleEditScreen FixOnCurrent()
-        {
-            Log("Requested FixOnCurrent");
-            if (_currentScreen == null)
-                RefreshCurrentTitleEditScreen();
-            FixOn(_currentScreen.CameraPos, _currentScreen.FixOnPos, _currentScreen.FovY);
-            if (TitleEditAddressResolver.LobbyCamera != IntPtr.Zero)
-                _fixOnHook.Original(TitleEditAddressResolver.LobbyCamera,
-                    FloatArrayFromVector3(_currentScreen.CameraPos),
-                    FloatArrayFromVector3(_currentScreen.FixOnPos),
-                    _currentScreen.FovY);
-            return _currentScreen;
         }
 
         public void FixOn(Vector3 cameraPos, Vector3 focusPos, float fov)
