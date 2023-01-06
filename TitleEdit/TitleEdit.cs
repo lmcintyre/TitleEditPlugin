@@ -146,9 +146,17 @@ public class TitleEdit
         }
 
         Log($"Title Edit loaded {path}");
-            
+
         if (_configuration.DisplayTitleToast)
-            _pi.UiBuilder.AddNotification($"Now displaying: {_currentScreen.Name}", "Title Edit", NotificationType.Info);
+        {
+            Task.Delay(1000).ContinueWith(_ =>
+            {
+                if (GetState("_TitleMenu") == UiState.Visible)
+                    _pi.UiBuilder.AddNotification($"Now displaying: {_currentScreen.Name}", "Title Edit", NotificationType.Info);
+            });
+
+        }
+            
     }
 
     private bool IsScreenValid(TitleEditScreen screen)
