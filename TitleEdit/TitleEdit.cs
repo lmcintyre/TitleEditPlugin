@@ -149,7 +149,7 @@ public class TitleEdit
 
         if (_configuration.DisplayTitleToast)
         {
-            Task.Delay(1000).ContinueWith(_ =>
+            Task.Delay(2000).ContinueWith(_ =>
             {
                 if (GetState("_TitleMenu") == UiState.Visible)
                     _pi.UiBuilder.AddNotification($"Now displaying: {_currentScreen.Name}", "Title Edit", NotificationType.Info);
