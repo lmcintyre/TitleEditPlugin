@@ -182,13 +182,17 @@ public class TitleEdit
             return returnVal;
         }
             
-        Log("---------------");
-        Log($"_ScreenText is {GetState("_ScreenText")}");
-        Log($"Title is {GetState("Title")}");
-        Log($"_TitleRevision is {GetState("_TitleRevision")}");
-        Log("---------------");
+        // Log("---------------");
+        // GetState("_ScreenText");
+        // GetState("Title");
+        // GetState("_TitleLogo");
+        // GetState("_TitleMenu");
+        // GetState("_TitleRevision");
+        // GetState("_TitleRights");
+        // GetState("CursorAddon");
+        // Log("---------------");
 
-        if (IsTitleScreen(p1) && GetState("_ScreenText") != UiState.Null)
+        if (IsTitleScreen(p1))// && GetState("_ScreenText") != UiState.Null)
         {
             Log("Loading custom title.");
             RefreshCurrentTitleEditScreen();
@@ -428,7 +432,7 @@ public class TitleEdit
 
     private unsafe UiState GetState(string uiName)
     {
-        Log($"GetState({uiName})");
+        // Log($"GetState({uiName})");
         var ui = (AtkUnitBase*)_gameGui.GetAddonByName(uiName, 1);
         var ret = UiState.Null;
         if (ui != null)
