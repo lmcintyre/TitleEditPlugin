@@ -339,6 +339,9 @@ public class TitleEdit
                 Stopwatch stop = Stopwatch.StartNew();
                 do
                 {
+                    if (!_amForcingTime)
+                        break;
+                    
                     if (TitleEditAddressResolver.SetTime != IntPtr.Zero)
                         _setTime(timeOffset);
                     Thread.Sleep(50);
@@ -363,6 +366,9 @@ public class TitleEdit
                 Stopwatch stop = Stopwatch.StartNew();
                 do
                 {
+                    if (!_amForcingWeather)
+                        break;
+                    
                     SetWeather(weather);
                     Thread.Sleep(20);
                 } while (stop.ElapsedMilliseconds < forceTime && _amForcingWeather);
