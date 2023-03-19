@@ -1,14 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Dalamud;
 using Dalamud.Data;
 using Dalamud.Game;
 using Dalamud.Game.ClientState;
@@ -323,6 +321,8 @@ public class TitleEdit
 
     public void Dispose()
     {
+        _amForcingTime = false;
+        _amForcingWeather = false;
         _loadLogoResourceHook.Dispose();
         _createSceneHook.Dispose();
         _playMusicHook.Dispose();
