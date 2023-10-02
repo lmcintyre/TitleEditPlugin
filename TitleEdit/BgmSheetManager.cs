@@ -1,123 +1,92 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net;
+using System.Linq;
 using System.Net.Http;
-using System.Threading.Tasks;
-using Dalamud.Logging;
+using Lumina.Excel.GeneratedSheets;
 
-namespace TitleEdit
+namespace TitleEdit;
+
+public struct BgmInfo
 {
-    public struct BgmInfo
+    public string Title;
+    public string Location;
+    public string FilePath;
+    public string AdditionalInfo;
+}
+
+public class BgmSheetManager
+{
+    private const string SheetPath = @"https://docs.google.com/spreadsheets/d/1qAkxPiXWF-EUHbIXdNcO-Ilo2AwLnqvdpW9tjKPitPY/gviz/tq?tqx=out:csv&sheet={0}";
+    private const string SheetFileName = "xiv_bgm_{0}.csv";
+    private readonly Dictionary<int, BgmInfo> _bgms;
+    private readonly Dictionary<uint, string> _bgmPaths;
+    private readonly HttpClient _client = new();
+
+    public BgmSheetManager()
     {
-        public string Title;
-        public string Location;
-        public string FilePath;
-        public string AdditionalInfo;
+        _bgms = new Dictionary<int, BgmInfo>();
+        _bgmPaths = DalamudApi.DataManager.GetExcelSheet<BGM>()!.ToDictionary(r => r.RowId, r => r.File.ToString());
+        
+        try
+        {
+            DalamudApi.PluginLog.Information("[SongList] Checking for updated bgm sheets");
+            LoadLangSheet(GetRemoteSheet("en"), "en");
+        }
+        catch (Exception e)
+        {
+            DalamudApi.PluginLog.Error(e, "[SongList] Orchestrion failed to update bgm sheet; using previous version");
+            LoadLangSheet(GetLocalSheet("en"), "en");
+        }
+    }
+    
+    private string GetRemoteSheet(string code)
+    {
+        return _client.GetStringAsync(string.Format(SheetPath, code)).Result;
     }
 
-    public class BgmSheetManager
+    private string GetLocalSheet(string code)
     {
-        private const string SheetPath = @"https://docs.google.com/spreadsheets/d/1gGNCu85sjd-4CDgqw-K5tefTe4HYuDK38LkRyvx_fEc/gviz/tq?tqx=out:csv&sheet=main";
-        private const string Filename = "bgm.csv";
-        private Dictionary<ushort, BgmInfo> _bgms;
-        private readonly Dictionary<ushort, string> _bgmPaths;
-        private readonly string _pluginConfigFolder;
+        return File.ReadAllText(Path.Combine(DalamudApi.PluginInterface.AssemblyLocation.DirectoryName!, string.Format(SheetFileName, code)));
+    }
 
-        public BgmSheetManager(string pluginConfigFolder, Dictionary<ushort, string> bgmPathDict)
+    private void SaveLocalSheet(string text, string code)
+    {
+        File.WriteAllText(Path.Combine(DalamudApi.PluginInterface.AssemblyLocation.DirectoryName!, string.Format(SheetFileName, code)), text);
+    }
+
+    private void LoadLangSheet(string sheetText, string code)
+    {
+        var sheetLines = sheetText.Split('\n'); // gdocs provides \n
+        for (int i = 1; i < sheetLines.Length; i++)
         {
-            _pluginConfigFolder = pluginConfigFolder;
-            _bgmPaths = bgmPathDict;
-            _bgms = new Dictionary<ushort, BgmInfo>();
-            Task.Run(UpdateSheet);
+            // The formatting is odd here because gdocs adds quotes around columns and doubles each single quote
+            var elements = sheetLines[i].Split(new[] { "\"," }, StringSplitOptions.None);
+            var id = int.Parse(elements[0].Substring(1));
+            var name = elements[1].Substring(1);
+            var locations = elements[4].Substring(1);
+            var addtlInfo = elements[5].Substring(1, elements[5].Length - 2).Replace("\"\"", "\"");
+
+            if (string.IsNullOrEmpty(name) || name == "Null BGM" || name == "test")
+                continue;
+
+            if (!_bgmPaths.TryGetValue((uint)id, out var path))
+                continue;
+            
+            var bgm = new BgmInfo
+            {
+                Title = name,
+                FilePath = path,
+                Location = locations,
+                AdditionalInfo = addtlInfo,
+            };
+            _bgms[id] = bgm;
         }
-
-        // Attempts to load supplemental bgm data from the csv file
-        // Will always instantiate _bgms with path information
-        private bool LoadSheet(string sheetText)
-        {
-            _bgms = new Dictionary<ushort, BgmInfo>();
-
-            foreach (var key in _bgmPaths)
-            {
-                _bgms[key.Key] = new BgmInfo {FilePath = key.Value};
-            }
-
-            bool loadSuccess = true;
-            try
-            {
-                var sheetLines = sheetText.Split('\n'); // gdocs provides \n
-                for (int i = 1; i < sheetLines.Length; i++)
-                {
-                    var elements = sheetLines[i].Split(new[] {"\","}, StringSplitOptions.None);
-                    var id = ushort.Parse(elements[0].Substring(1));
-                    _bgms.TryGetValue(id, out var info);
-                    info.Title = elements[1].Substring(1).Replace("\"\"", "\"");
-                    info.Location = elements[2].Substring(1).Replace("\"\"", "\"");
-                    info.AdditionalInfo = elements[3].Substring(1, elements[3].Substring(1).Length - 1).Replace("\"\"", "\"");
-                    _bgms[id] = info;
-                }
-            }
-            catch (Exception e)
-            {
-                PluginLog.Error(e, "Could not read bgm sheet.");
-                loadSuccess = false;
-            }
-
-            return loadSuccess;
-        }
-
-        private void UpdateSheet()
-        {
-            var destination = _pluginConfigFolder + "\\" + Filename;
-            using var client = new HttpClient();
-            try
-            {
-                var newText = client.GetStringAsync(SheetPath).Result;
-                if (File.Exists(destination))
-                {
-                    string existingText = File.ReadAllText(destination);
-                    if (newText == existingText)
-                    {
-                        LoadSheet(existingText);
-                        PluginLog.Log("Loaded bgms.");
-                    }
-                    else if (LoadSheet(newText))
-                    {
-                        File.WriteAllText(destination, newText);
-                        PluginLog.Log("Updated bgm sheet.");
-                    }
-                    else
-                    {
-                        PluginLog.Error("There was a new bgm sheet, but parsing it failed.");
-                        PluginLog.Error("TitleEdit failed to update bgm sheet.");
-                        // Assume the previous file loaded fine?
-                        LoadSheet(existingText);
-                    }
-                }
-                else
-                {
-                    if (LoadSheet(newText))
-                    {
-                        File.WriteAllText(destination, newText);
-                        PluginLog.Log("Updated bgm sheet");
-                    }
-                    else
-                    {
-                        PluginLog.Error("Failed to parse fresh bgm sheet.");
-                        PluginLog.Error("TitleEdit failed to update bgm sheet.");
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                PluginLog.Error(e, "TitleEdit failed to update bgm sheet.");
-            }
-        }
-
-        public BgmInfo GetBgmInfo(ushort id)
-        {
-            return !_bgms.TryGetValue(id, out var info) ? new BgmInfo {Title = "Invalid"} : info;
-        }
+        SaveLocalSheet(sheetText, code);
+    }
+    
+    public BgmInfo GetBgmInfo(ushort id)
+    {
+        return !_bgms.TryGetValue(id, out var info) ? new BgmInfo {Title = "Invalid"} : info;
     }
 }

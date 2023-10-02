@@ -135,7 +135,7 @@
         </Content>
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="DalamudPackager" Version="2.1.10" />
+        <PackageReference Include="DalamudPackager" Version="2.1.12" />
     </ItemGroup>
     <ItemGroup>
       <EmbeddedResource Include="menu_icon.png" />

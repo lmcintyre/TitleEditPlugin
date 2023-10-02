@@ -7,14 +7,8 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Dalamud.Data;
-using Dalamud.Game;
-using Dalamud.Game.ClientState;
-using Dalamud.Game.Gui;
 using Dalamud.Hooking;
 using Dalamud.Interface.Internal.Notifications;
-using Dalamud.Logging;
-using Dalamud.Plugin;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Newtonsoft.Json;
 
@@ -34,11 +28,6 @@ public class TitleEdit
 
     // The size of the BGMControl object
     private const int ControlSize = 88;
-
-    private readonly ClientState _clientState;
-    private readonly GameGui _gameGui;
-    private readonly DataManager _data;
-    private readonly DalamudPluginInterface _pi;
     private readonly TitleEditConfiguration _configuration;
 
     private readonly Hook<OnCreateScene> _createSceneHook;
@@ -69,34 +58,23 @@ public class TitleEdit
         BgmPath = "music/ffxiv/BGM_System_Title.scd"
     };
 
-    public TitleEdit(
-        SigScanner scanner,
-        ClientState clientState,
-        GameGui gameGui,
-        DataManager data,
-        DalamudPluginInterface pi,
-        TitleEditConfiguration configuration,
-        string screenDir)
+    public TitleEdit(TitleEditConfiguration configuration, string screenDir)
     {
-        PluginLog.Log("TitleEdit hook init");
-        _clientState = clientState;
-        _gameGui = gameGui;
-        _data = data;
-        _pi = pi;
+        DalamudApi.PluginLog.Info("TitleEdit hook init");
         _configuration = configuration;
 
-        TitleEditAddressResolver.Setup64Bit(scanner);
+        TitleEditAddressResolver.Setup64Bit();
 
         _titleScreenBasePath = screenDir;
 
-        _createSceneHook = Hook<OnCreateScene>.FromAddress(TitleEditAddressResolver.CreateScene, HandleCreateScene);
-        _playMusicHook = Hook<OnPlayMusic>.FromAddress(TitleEditAddressResolver.PlayMusic, HandlePlayMusic);
-        _fixOnHook = Hook<OnFixOn>.FromAddress(TitleEditAddressResolver.FixOn, HandleFixOn);
+        _createSceneHook = DalamudApi.Hooks.HookFromAddress<OnCreateScene>(TitleEditAddressResolver.CreateScene, HandleCreateScene);
+        _playMusicHook = DalamudApi.Hooks.HookFromAddress<OnPlayMusic>(TitleEditAddressResolver.PlayMusic, HandlePlayMusic);
+        _fixOnHook = DalamudApi.Hooks.HookFromAddress<OnFixOn>(TitleEditAddressResolver.FixOn, HandleFixOn);
         _loadLogoResourceHook =
-            Hook<OnLoadLogoResource>.FromAddress(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
+            DalamudApi.Hooks.HookFromAddress<OnLoadLogoResource>(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
 
         _setTime = Marshal.GetDelegateForFunctionPointer<SetTimePrototype>(TitleEditAddressResolver.SetTime);
-        PluginLog.Log("TitleEdit hook init finished");
+        DalamudApi.PluginLog.Info("TitleEdit hook init finished");
     }
 
     internal void RefreshCurrentTitleEditScreen()
@@ -127,7 +105,7 @@ public class TitleEdit
         var path = Path.Combine(_titleScreenBasePath, toLoad + ".json");
         if (!File.Exists(path))
         {
-            PluginLog.Log(
+            DalamudApi.PluginLog.Info(
                 $"Title Edit tried to find {path}, but no title file was found, so title settings have been reset.");
             Fail();
             return;
@@ -138,7 +116,7 @@ public class TitleEdit
 
         if (!IsScreenValid(_currentScreen))
         {
-            PluginLog.Log($"Title Edit tried to load {_currentScreen.Name}, but the necessary files are missing, so title settings have been reset.");
+            DalamudApi.PluginLog.Info($"Title Edit tried to load {_currentScreen.Name}, but the necessary files are missing, so title settings have been reset.");
             Fail();
             return;
         }
@@ -150,7 +128,7 @@ public class TitleEdit
             Task.Delay(2000).ContinueWith(_ =>
             {
                 if (GetState("_TitleMenu") == UiState.Visible)
-                    _pi.UiBuilder.AddNotification($"Now displaying: {_currentScreen.Name}", "Title Edit", NotificationType.Info);
+                    DalamudApi.PluginInterface.UiBuilder.AddNotification($"Now displaying: {_currentScreen.Name}", "Title Edit", NotificationType.Info);
             });
 
         }
@@ -159,8 +137,8 @@ public class TitleEdit
 
     private bool IsScreenValid(TitleEditScreen screen)
     {
-        return _data.FileExists($"bg/{screen.TerritoryPath}.lvb") &&
-               _data.FileExists(screen.BgmPath);
+        return DalamudApi.DataManager.FileExists($"bg/{screen.TerritoryPath}.lvb") &&
+               DalamudApi.DataManager.FileExists(screen.BgmPath);
     }
 
     private void Fail()
@@ -351,7 +329,7 @@ public class TitleEdit
             }
             catch (Exception e)
             {
-                PluginLog.Error(e, "An error occurred when forcing time.");
+                DalamudApi.PluginLog.Error(e, "An error occurred when forcing time.");
             }
         });
     }
@@ -378,7 +356,7 @@ public class TitleEdit
             }
             catch (Exception e)
             {
-                PluginLog.Error(e, "An error occurred when forcing weather.");
+                DalamudApi.PluginLog.Error(e, "An error occurred when forcing weather.");
             }
         });
     }
@@ -447,7 +425,7 @@ public class TitleEdit
     private unsafe UiState GetState(string uiName)
     {
         // Log($"GetState({uiName})");
-        var ui = (AtkUnitBase*)_gameGui.GetAddonByName(uiName, 1);
+        var ui = (AtkUnitBase*)DalamudApi.GameGui.GetAddonByName(uiName, 1);
         var ret = UiState.Null;
         if (ui != null)
         {
@@ -464,7 +442,7 @@ public class TitleEdit
         Task.Delay(delay).ContinueWith(_ =>
         {
             Log($"Logo task running after {delay} delay");
-            var addon = (AtkUnitBase*)_gameGui.GetAddonByName("_TitleLogo", 1);
+            var addon = (AtkUnitBase*)DalamudApi.GameGui.GetAddonByName("_TitleLogo", 1);
             if (addon == null || addon->UldManager.NodeListCount < 2) return;
             var node = addon->UldManager.NodeList[1];
             if (node == null) return;
@@ -491,7 +469,7 @@ public class TitleEdit
 
     public unsafe void EnableTitleLogo()
     {
-        var addon = (AtkUnitBase*)_gameGui.GetAddonByName("_TitleLogo", 1);
+        var addon = (AtkUnitBase*)DalamudApi.GameGui.GetAddonByName("_TitleLogo", 1);
         if (addon == null || addon->UldManager.NodeListCount < 2) return;
         var node = addon->UldManager.NodeList[1];
         if (node == null) return;
@@ -594,7 +572,7 @@ public class TitleEdit
     //         {
     //             flagVal = *(ushort*) flag.ToPointer();
     //             if ((flagVal & visibleFlag) == visibleFlag)
-    //                 PluginLog.Log($"visible: {(flagVal & visibleFlag) == visibleFlag} | {start.ElapsedMilliseconds}");
+    //                 DalamudApi.PluginLog.Info($"visible: {(flagVal & visibleFlag) == visibleFlag} | {start.ElapsedMilliseconds}");
     //             
     //             // arr: 59
     //             // arrft: 61
@@ -614,6 +592,6 @@ public class TitleEdit
 #if !DEBUG
             if (_configuration.DebugLogging)
 #endif
-        PluginLog.Log($"[dbg] {s}");
+        DalamudApi.PluginLog.Debug($"[dbg] {s}");
     }
 }
