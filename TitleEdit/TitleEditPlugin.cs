@@ -249,7 +249,7 @@ namespace TitleEdit
             Vector3 eyesPos = default;
             Vector3 lookAt = default;
 #if !DEBUG
-            if (_clientState.LocalPlayer?.Position == null)
+            if (DalamudApi.ClientState.LocalPlayer?.Position == null)
             {
                 ImGui.TextColored(new Vector4(1f, 0f, 0f, 1f), "The current game state is invalid for creating a title screen.");
                 stateInvalid = true;
@@ -309,14 +309,14 @@ namespace TitleEdit
                     ImGui.PopTextWrapPos();
                 }
 #else
-                if (!_territoryPaths.ContainsKey(_clientState.TerritoryType))
+                if (!_territoryPaths.ContainsKey(DalamudApi.ClientState.TerritoryType))
                 {
                     ImGui.TextColored(new Vector4(1f, 0f, 0f, 1f), "The current territory is not valid for a title screen.");
                     stateInvalid = true;
                 }
                 else
                 {
-                    ImGui.Text($"Title screen zone: {_territoryPaths[_clientState.TerritoryType].PlaceName.Value.Name}");
+                    ImGui.Text($"Title screen zone: {_territoryPaths[DalamudApi.ClientState.TerritoryType].PlaceName.Value.Name}");
                 }
 #endif
 
@@ -512,7 +512,7 @@ namespace TitleEdit
 #if DEBUG
                 scr.TerritoryPath = _terriPath;
 #else
-                scr.TerritoryPath = _territoryPaths[_clientState.TerritoryType].Bg.ToString();
+                scr.TerritoryPath = _territoryPaths[DalamudApi.ClientState.TerritoryType].Bg.ToString();
 #endif
                 scr.CameraPos = eyesPos;
                 scr.FixOnPos = lookAt;
