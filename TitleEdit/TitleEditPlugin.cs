@@ -75,11 +75,15 @@ namespace TitleEdit
         private string _terriPath = "";
         private ushort _lastBgmId;
         private string _songDescription = ""; // This is global so we don't have to do text size calc every frame
+        private Vector4 _versionTextColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+        private Vector4 _copyrightTextColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+        private Vector4 _buttonTextColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+        private Vector4 _buttonHighlightColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 
         private Dictionary<uint, TerritoryType> _territoryPaths;
         private Dictionary<uint, string> _weathers;
 
-        public TitleEditPlugin(DalamudPluginInterface pi)
+        public TitleEditPlugin(DalamudPluginInterface pi, IClientState clientState, IGameGui gameGui, IDataManager dataManager)
         {
             DalamudApi.Initialize(pi);
             DalamudApi.PluginLog.Info("===== T I T L E E D I T =====");
@@ -123,7 +127,7 @@ namespace TitleEdit
                 .ToDictionary(row => row.RowId, row => row.Name.ToString());
             _bgmSheet = new BgmSheetManager();
             
-            _titleEdit = new TitleEdit(_configuration, _titleScreenFolder);
+            _titleEdit = new TitleEdit(_configuration, _titleScreenFolder, clientState, gameGui, dataManager);
             _titleEdit.Enable();
 
             DalamudApi.PluginInterface.UiBuilder.Draw += UiBuilder_OnBuildUi;
@@ -216,7 +220,7 @@ namespace TitleEdit
             if (!_isImguiTitleEditOpen)
                 return;
 
-            ImGui.SetNextWindowSize(new Vector2(GuiScale(480), GuiScale(530)));
+            ImGui.SetNextWindowSize(new Vector2(GuiScale(480), GuiScale(580)));
             ImGui.Begin("Title Editing", ref _isImguiTitleEditOpen, ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
             ImGui.BeginTabBar("TitleEditMainTabBar");
             DrawCreation();
@@ -240,9 +244,9 @@ namespace TitleEdit
             ImGui.Text("This tab allows you to create a custom title screen.");
             ImGui.Text("It is recommended to use first-person view.");
 #if DEBUG
-            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(400)), true, ImGuiWindowFlags.NoScrollbar);
+            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(450)), true, ImGuiWindowFlags.NoScrollbar);
 #else
-            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(400)), true, ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoScrollbar);
+            ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(450)), true, ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoScrollbar);
 #endif
             bool stateInvalid;
             var selectedBgm = new BgmInfo {Title = "Unknown", FilePath = ""};
@@ -471,6 +475,17 @@ namespace TitleEdit
                     var scaled = _tsTimeMin / 60f * 100;
                     _tsTimeOffset = (int) (_tsTimeHrs * 100 + scaled % 100);
                 }
+                ImGui.ColorEdit4("Version text color", ref _versionTextColor,
+                    ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreview);
+
+                ImGui.ColorEdit4("Copyright text color", ref _copyrightTextColor, 
+                    ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreview);
+
+                ImGui.ColorEdit4("Button text color", ref _buttonTextColor, 
+                    ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreview);
+
+                ImGui.ColorEdit4("Button highlight color", ref _buttonHighlightColor, 
+                    ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreview);
             }
 
 #if DEBUG
@@ -520,6 +535,11 @@ namespace TitleEdit
                 scr.WeatherId = (byte) _weatherId;
                 scr.TimeOffset = (ushort) _tsTimeOffset;
                 scr.BgmPath = selectedBgm.FilePath;
+                scr.VersionTextColor = _versionTextColor * 255.0f;
+                scr.CopyrightTextColor = _copyrightTextColor * 255.0f;
+                scr.ButtonTextColor = _buttonTextColor * 255.0f;
+                scr.ButtonHighlightColor = _buttonHighlightColor * 255.0f;
+
                 var text = JsonConvert.SerializeObject(scr, Formatting.Indented);
                 bool createSuccess = false;
                 try

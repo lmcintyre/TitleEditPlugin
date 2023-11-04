@@ -27,6 +27,7 @@ namespace TitleEdit
         public static IntPtr PlayMusic { get; private set; }
         public static IntPtr BgmControl { get; private set; }
         public static IntPtr WeatherPtrBase { get; private set; }
+        public static IntPtr LoadTitleScreenAssets { get; private set; }
 
         public static void Setup64Bit()
         {
@@ -38,6 +39,7 @@ namespace TitleEdit
             PlayMusic = DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 89 47 18 89 5F 20");
             BgmControl = DalamudApi.SigScanner.GetStaticAddressFromSig("48 8B 05 ?? ?? ?? ?? 48 85 C0 74 37 83 78 08 04");
             WeatherPtrBase = DalamudApi.SigScanner.GetStaticAddressFromSig("48 8B 05 ?? ?? ?? ?? 48 8B D9 0F 29 7C 24 ?? 41 8B FF");
+            LoadTitleScreenAssets = DalamudApi.SigScanner.ScanText("48 89 5C 24 ?? 57 48 83 EC 20 49 8B D8 48 8B F9 E8 ?? ?? ?? ?? 41 B8 ?? ?? ?? ??");
         }
     }
 }

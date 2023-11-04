@@ -15,5 +15,29 @@
   },
   "FovY": 1.0,
   "WeatherId": 2,
-  "BgmPath": "music/ex2/BGM_EX2_System_Title.scd"
+  "BgmPath": "music/ex2/BGM_EX2_System_Title.scd",
+  "VersionTextColor": {
+    "X": 240.0,
+    "Y": 142.0,
+    "Z": 55.0,
+    "W": 255.0
+  },
+  "CopyrightTextColor": {
+    "X": 240.0,
+    "Y": 142.0,
+    "Z": 55.0,
+    "W": 255.0
+  },
+  "ButtonTextColor": {
+    "X": 240.0,
+    "Y": 142.0,
+    "Z": 55.0,
+    "W": 255.0
+  },
+  "ButtonHighlightColor": {
+    "X": 255.0,
+    "Y": 127.0,
+    "Z": 32.0,
+    "W": 255.0
+  }
 }
