@@ -83,7 +83,7 @@ namespace TitleEdit
         private Dictionary<uint, TerritoryType> _territoryPaths;
         private Dictionary<uint, string> _weathers;
 
-        public TitleEditPlugin(DalamudPluginInterface pi)
+        public TitleEditPlugin(DalamudPluginInterface pi, IClientState clientState, IGameGui gameGui, IDataManager dataManager)
         {
             DalamudApi.Initialize(pi);
             DalamudApi.PluginLog.Info("===== T I T L E E D I T =====");
@@ -127,7 +127,7 @@ namespace TitleEdit
                 .ToDictionary(row => row.RowId, row => row.Name.ToString());
             _bgmSheet = new BgmSheetManager();
             
-            _titleEdit = new TitleEdit(_configuration, _titleScreenFolder);
+            _titleEdit = new TitleEdit(_configuration, _titleScreenFolder, clientState, gameGui, dataManager);
             _titleEdit.Enable();
 
             DalamudApi.PluginInterface.UiBuilder.Draw += UiBuilder_OnBuildUi;
