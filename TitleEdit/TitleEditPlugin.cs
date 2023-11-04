@@ -6,16 +6,9 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using Dalamud.Data;
-using Dalamud.Game;
-using Dalamud.Game.ClientState;
-using Dalamud.Game.ClientState.Keys;
 using Dalamud.Game.Command;
-using Dalamud.Game.Gui;
-using Dalamud.Interface;
-using Dalamud.IoC;
-using Dalamud.Logging;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using ImGuiNET;
 using Lumina.Excel.GeneratedSheets;
 using Newtonsoft.Json;
@@ -89,34 +82,12 @@ namespace TitleEdit
 
         private Dictionary<uint, TerritoryType> _territoryPaths;
         private Dictionary<uint, string> _weathers;
-        
-        private DalamudPluginInterface _pluginInterface;
-        private CommandManager _commandManager;
-        private DataManager _dataManager;
-        private ClientState _clientState;
-        private Framework _framework;
-        private KeyState _keyState;
-        // private TitleScreenMenu _titleScreenMenu;
 
-        public TitleEditPlugin(
-            [RequiredVersion("1.0")] DalamudPluginInterface pluginInterface,
-            [RequiredVersion("1.0")] CommandManager commandManager,
-            [RequiredVersion("1.0")] DataManager dataManager,
-            [RequiredVersion("1.0")] ClientState clientState,
-            [RequiredVersion("1.0")] Framework framework,
-            [RequiredVersion("1.0")] KeyState keyState,
-            [RequiredVersion("1.0")] SigScanner sigScanner,
-            [RequiredVersion("1.0")] GameGui gameGui,
-            [RequiredVersion("1.0")] TitleScreenMenu titleScreenMenu)
+        public TitleEditPlugin(DalamudPluginInterface pi)
         {
-            PluginLog.Log("===== T I T L E E D I T =====");
-            _pluginInterface = pluginInterface;
-            _commandManager = commandManager;
-            _dataManager = dataManager;
-            _clientState = clientState;
-            _framework = framework;
-            _keyState = keyState;
-            
+            DalamudApi.Initialize(pi);
+            DalamudApi.PluginLog.Info("===== T I T L E E D I T =====");
+
             // Load menu_icon.png from dll resources
             var assembly = Assembly.GetExecutingAssembly();
             var resourceStream = assembly.GetManifestResourceStream("TitleEdit.menu_icon.png");
@@ -124,52 +95,50 @@ namespace TitleEdit
             {
                 var imageBytes = new byte[resourceStream.Length];
                 resourceStream.Read(imageBytes, 0, (int) resourceStream.Length);
-                PluginLog.Information($"image is {imageBytes.Length} bytes");
+                DalamudApi.PluginLog.Information($"image is {imageBytes.Length} bytes");
                 try
                 {
-                    var image = pluginInterface.UiBuilder.LoadImage(imageBytes);
-                    titleScreenMenu.AddEntry("Title Edit Menu", image, () => { _isImguiTitleEditOpen = true; });
+                    var image = DalamudApi.PluginInterface.UiBuilder.LoadImage(imageBytes);
+                    DalamudApi.TitleScreenMenu.AddEntry("Title Edit Menu", image, () => { _isImguiTitleEditOpen = true; });
                 }
                 catch (Exception e)
                 {
-                    PluginLog.Error(e, "Title Edit encountered an error loading menu icon");
+                    DalamudApi.PluginLog.Error(e, "Title Edit encountered an error loading menu icon");
                 }
             }           
             
-            _commandManager.AddHandler(TitleEditCommand, new CommandInfo(OnTitleEditCommand)
+            DalamudApi.CommandManager.AddHandler(TitleEditCommand, new CommandInfo(OnTitleEditCommand)
             {
                 HelpMessage = "Display the Title Edit configuration interface."
             });
 
-            _configuration = pluginInterface.GetPluginConfig() as TitleEditConfiguration ?? new TitleEditConfiguration();
-            _configuration.Initialize(pluginInterface);
+            _configuration = DalamudApi.PluginInterface.GetPluginConfig() as TitleEditConfiguration ?? new TitleEditConfiguration();
+            _configuration.Initialize(DalamudApi.PluginInterface);
 
-            _titleScreenFolder = _pluginInterface.GetPluginConfigDirectory();
+            _titleScreenFolder = DalamudApi.PluginInterface.GetPluginConfigDirectory();
             if (!Directory.Exists(_titleScreenFolder))
                 Directory.CreateDirectory(_titleScreenFolder);
             PrepareAssets();
             EnumerateTitleScreenFiles();
 
-            _territoryPaths = dataManager.GetExcelSheet<TerritoryType>()
+            _territoryPaths = DalamudApi.DataManager.GetExcelSheet<TerritoryType>()!
                 .ToDictionary(row => row.RowId, row => row);
-            _weathers = dataManager.GetExcelSheet<Weather>()
+            _weathers = DalamudApi.DataManager.GetExcelSheet<Weather>()!
                 .ToDictionary(row => row.RowId, row => row.Name.ToString());
-            var bgms = dataManager.GetExcelSheet<BGM>()
-                .ToDictionary(row => (ushort) row.RowId, row => row.File.ToString());
-            _bgmSheet = new BgmSheetManager(_titleScreenFolder, bgms);
+            _bgmSheet = new BgmSheetManager();
             
-            _titleEdit = new TitleEdit(sigScanner, clientState, gameGui, dataManager, _pluginInterface, _configuration, _titleScreenFolder);
+            _titleEdit = new TitleEdit(_configuration, _titleScreenFolder);
             _titleEdit.Enable();
 
-            _pluginInterface.UiBuilder.Draw += UiBuilder_OnBuildUi;
-            _framework.Update += CheckHotkey;
-            _pluginInterface.UiBuilder.OpenConfigUi += () => _isImguiTitleEditOpen = true;
-            PluginLog.Log("Init complete.");
+            DalamudApi.PluginInterface.UiBuilder.Draw += UiBuilder_OnBuildUi;
+            DalamudApi.Framework.Update += CheckHotkey;
+            DalamudApi.PluginInterface.UiBuilder.OpenConfigUi += () => _isImguiTitleEditOpen = true;
+            DalamudApi.PluginLog.Info("Init complete.");
         }
         
         private void PrepareAssets()
         {
-            var temp = Path.Combine(Path.GetDirectoryName(_pluginInterface.AssemblyLocation.FullName), "titlescreens");
+            var temp = Path.Combine(Path.GetDirectoryName(DalamudApi.PluginInterface.AssemblyLocation.FullName), "titlescreens");
             var assets = Directory.GetFiles(temp);
             foreach (var asset in assets)
             {
@@ -227,12 +196,12 @@ namespace TitleEdit
             return f * ImGui.GetIO().FontGlobalScale;
         }
 
-        private void CheckHotkey(Framework framework)
+        private void CheckHotkey(IFramework framework)
         {
             // ctrl+t only on title screen (maybe?)
-            if (_keyState[0x11] &&
-                _keyState[0x54] &&
-                _clientState.LocalPlayer == null &&
+            if (DalamudApi.KeyState[0x11] &&
+                DalamudApi.KeyState[0x54] &&
+                DalamudApi.ClientState.LocalPlayer == null &&
                 _canChangeUiVisibility)
             {
                 _isImguiTitleEditOpen = !_isImguiTitleEditOpen;
@@ -280,11 +249,11 @@ namespace TitleEdit
             ImGui.BeginChild("scrolling", new Vector2(0, GuiScale(450)), true, ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoScrollbar);
 #endif
             bool stateInvalid;
-            BgmInfo selectedBgm = new BgmInfo {Title = "Unknown", FilePath = ""};
+            var selectedBgm = new BgmInfo {Title = "Unknown", FilePath = ""};
             Vector3 eyesPos = default;
             Vector3 lookAt = default;
 #if !DEBUG
-            if (_clientState.LocalPlayer?.Position == null)
+            if (DalamudApi.ClientState.LocalPlayer?.Position == null)
             {
                 ImGui.TextColored(new Vector4(1f, 0f, 0f, 1f), "The current game state is invalid for creating a title screen.");
                 stateInvalid = true;
@@ -344,18 +313,18 @@ namespace TitleEdit
                     ImGui.PopTextWrapPos();
                 }
 #else
-                if (!_territoryPaths.ContainsKey(_clientState.TerritoryType))
+                if (!_territoryPaths.ContainsKey(DalamudApi.ClientState.TerritoryType))
                 {
                     ImGui.TextColored(new Vector4(1f, 0f, 0f, 1f), "The current territory is not valid for a title screen.");
                     stateInvalid = true;
                 }
                 else
                 {
-                    ImGui.Text($"Title screen zone: {_territoryPaths[_clientState.TerritoryType].PlaceName.Value.Name}");
+                    ImGui.Text($"Title screen zone: {_territoryPaths[DalamudApi.ClientState.TerritoryType].PlaceName.Value.Name}");
                 }
 #endif
 
-                eyesPos = EyesPos(_clientState.LocalPlayer?.Position ?? new Vector3{X = 0, Y = 0, Z = 0});
+                eyesPos = EyesPos(DalamudApi.ClientState.LocalPlayer?.Position ?? new Vector3{X = 0, Y = 0, Z = 0});
                 ImGui.Text($"Camera position: {eyesPos.X:F2}, {eyesPos.Y:F2}, {eyesPos.Z:F2}");
 
                 lookAt = LookAt(new Vector3(eyesPos.X, eyesPos.Y, eyesPos.Z));
@@ -370,7 +339,7 @@ namespace TitleEdit
                     _fovY = 1f;
                 
                 // Weather
-                var newType = _clientState.TerritoryType;
+                var newType = DalamudApi.ClientState.TerritoryType;
                 if (newType != _lastTerritoryId)
                 {
                     _lastTerritoryId = newType;
@@ -463,7 +432,7 @@ namespace TitleEdit
                 if (ImGui.IsItemHovered())
                     DrawBgmTooltip(selectedBgm);
                 ImGui.SameLine();
-                if (_selectedBgmId < 1 || currentBgm.Title == "Invalid")
+                if (_selectedBgmId < 1 || string.IsNullOrEmpty(selectedBgm.FilePath) || !DalamudApi.DataManager.FileExists(selectedBgm.FilePath))
                 {
                     ImGui.TextColored(new Vector4(1f, 0f, 0f, 1f), "(invalid)");
                     stateInvalid = true;
@@ -558,7 +527,7 @@ namespace TitleEdit
 #if DEBUG
                 scr.TerritoryPath = _terriPath;
 #else
-                scr.TerritoryPath = _territoryPaths[_clientState.TerritoryType].Bg.ToString();
+                scr.TerritoryPath = _territoryPaths[DalamudApi.ClientState.TerritoryType].Bg.ToString();
 #endif
                 scr.CameraPos = eyesPos;
                 scr.FixOnPos = lookAt;
@@ -581,7 +550,7 @@ namespace TitleEdit
                 }
                 catch (Exception e)
                 {
-                    PluginLog.LogError(e, "Error occurred saving title screen.");
+                    DalamudApi.PluginLog.Error(e, "Error occurred saving title screen.");
                 }
 
                 if (createSuccess)
@@ -624,7 +593,7 @@ namespace TitleEdit
                 {
                     _exportRef = "";
                     string fileName = Path.Combine(_titleScreenFolder, _titleScreensExport[_selectedTitleIndexExport] + ".json");
-                    PluginLog.Log($"Exporting {fileName}");
+                    DalamudApi.PluginLog.Info($"Exporting {fileName}");
                     if (File.Exists(fileName))
                     {
                         string text = File.ReadAllText(fileName);
@@ -664,7 +633,7 @@ namespace TitleEdit
                             string toImport = Encoding.UTF8.GetString(Convert.FromBase64String(_importRef.Substring(3).Trim()));
                             screen = JsonConvert.DeserializeObject<TitleEditScreen>(toImport);
                             string fileName = Path.Combine(_titleScreenFolder, screen.Name + ".json");
-                            PluginLog.Log($"Importing {fileName}");
+                            DalamudApi.PluginLog.Info($"Importing {fileName}");
                             if (!File.Exists(fileName))
                             {
                                 File.WriteAllText(fileName, toImport);
@@ -679,7 +648,7 @@ namespace TitleEdit
                         {
                             if (screen == null)
                             {
-                                PluginLog.Error(e, $"Failed to parse input text!");
+                                DalamudApi.PluginLog.Error(e, $"Failed to parse input text!");
                                 _importParsed = false;
                                 Task.Delay(2000).ContinueWith(_ => _importParsed = true);
                             }
@@ -713,7 +682,7 @@ namespace TitleEdit
                         }
                         catch (Exception e)
                         {
-                            PluginLog.Error(e, $"Failed to save {_importExistsScreen.Name} to {fileName}");
+                            DalamudApi.PluginLog.Error(e, $"Failed to save {_importExistsScreen.Name} to {fileName}");
                             _importError = _importExistsScreen.Name;
                             Task.Delay(2000).ContinueWith(_ => _importError = "");
                         }
@@ -759,7 +728,7 @@ namespace TitleEdit
                         }
                         catch (Exception e)
                         {
-                            PluginLog.Error(e, $"Could not delete title file for {titleScreen} from {GetTitlePath(titleScreen)}");
+                            DalamudApi.PluginLog.Error(e, $"Could not delete title file for {titleScreen} from {GetTitlePath(titleScreen)}");
                         }
                     }
                 }
@@ -824,7 +793,7 @@ namespace TitleEdit
             if (!_territoryPaths.TryGetValue(id, out var path)) return;
             try
             {
-                var file = _dataManager.GetFile<LvbFile>($"bg/{path.Bg}.lvb");
+                var file = DalamudApi.DataManager.GetFile<LvbFile>($"bg/{path.Bg}.lvb");
                 if (file?.weatherIds == null || file.weatherIds.Length == 0)
                     return;
                 foreach (var weather in file.weatherIds)
@@ -840,7 +809,7 @@ namespace TitleEdit
             }
             catch (Exception e)
             {
-                PluginLog.Error(e, $"Failed to load lvb for {path}");
+                DalamudApi.PluginLog.Error(e, $"Failed to load lvb for {path}");
             }
         }
 
@@ -1059,7 +1028,7 @@ namespace TitleEdit
         public void Dispose()
         {
             _titleEdit?.Dispose();
-            _commandManager.RemoveHandler(TitleEditCommand);
+            DalamudApi.CommandManager.RemoveHandler(TitleEditCommand);
         }
     }
 }

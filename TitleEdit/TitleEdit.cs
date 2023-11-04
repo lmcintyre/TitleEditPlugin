@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -16,9 +15,11 @@ using Dalamud.Game.Gui;
 using Dalamud.Hooking;
 using Dalamud.Interface.Internal.Notifications;
 using Dalamud.Logging;
+using Dalamud.Plugin.Services;
 using Dalamud.Plugin;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Newtonsoft.Json;
+using FFXIVClientStructs.FFXIV.Client.Game.Fate;
 
 namespace TitleEdit
 {
@@ -27,9 +28,9 @@ namespace TitleEdit
         private delegate int OnCreateScene(string p1, uint p2, IntPtr p3, uint p4, IntPtr p5, int p6, uint p7);
         private delegate IntPtr OnFixOn(IntPtr self,
             [MarshalAs(UnmanagedType.LPArray, SizeConst = 3)]
-            float[] cameraPos,
+        float[] cameraPos,
             [MarshalAs(UnmanagedType.LPArray, SizeConst = 3)]
-            float[] focusPos, float fovY);
+        float[] focusPos, float fovY);
         private delegate ulong OnLoadLogoResource(IntPtr p1, string p2, int p3, int p4);
         private delegate IntPtr OnPlayMusic(IntPtr self, string filename, float volume, uint fadeTime);
         private delegate void OnLoadTitleScreenAssets(IntPtr p1, IntPtr p2, IntPtr p3);
@@ -37,11 +38,10 @@ namespace TitleEdit
         private delegate void SetTimePrototype(ushort timeOffset);
 
         // The size of the BGMControl object
-        private const int ControlSize = 88;
-
-        private readonly ClientState _clientState;
-        private readonly GameGui _gameGui;
-        private readonly DataManager _data;
+        private const int ControlSize = 88; 
+        private readonly IClientState _clientState;
+        private readonly IGameGui _gameGui;
+        private readonly IDataManager _data;
         private readonly DalamudPluginInterface _pi;
         private readonly TitleEditConfiguration _configuration;
 
@@ -78,34 +78,31 @@ namespace TitleEdit
             ButtonHighlightColor = new Vector4(0.0f, 127.0f, 219.0f, 255.0f)
         };
 
-        public TitleEdit(
-            SigScanner scanner,
-            ClientState clientState,
-            GameGui gameGui,
-            DataManager data,
-            DalamudPluginInterface pi,
-            TitleEditConfiguration configuration,
-            string screenDir)
+        public TitleEdit(TitleEditConfiguration configuration, 
+            string screenDir, 
+            IClientState clientState,
+            IGameGui gameGui,
+            IDataManager data)
         {
-            PluginLog.Log("TitleEdit hook init");
+            DalamudApi.PluginLog.Info("TitleEdit hook init");
             _clientState = clientState;
             _gameGui = gameGui;
             _data = data;
-            _pi = pi;
             _configuration = configuration;
 
-            TitleEditAddressResolver.Setup64Bit(scanner);
+            TitleEditAddressResolver.Setup64Bit();
 
             _titleScreenBasePath = screenDir;
 
-            _createSceneHook = Hook<OnCreateScene>.FromAddress(TitleEditAddressResolver.CreateScene, HandleCreateScene);
-            _playMusicHook = Hook<OnPlayMusic>.FromAddress(TitleEditAddressResolver.PlayMusic, HandlePlayMusic);
-            _fixOnHook = Hook<OnFixOn>.FromAddress(TitleEditAddressResolver.FixOn, HandleFixOn);
-            _loadLogoResourceHook = Hook<OnLoadLogoResource>.FromAddress(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
-            _loadTitleScreenAssetsHook = Hook<OnLoadTitleScreenAssets>.FromAddress(TitleEditAddressResolver.LoadTitleScreenAssets, HandleLoadTitleScreenAssets);
-
+            _createSceneHook = DalamudApi.Hooks.HookFromAddress<OnCreateScene>(TitleEditAddressResolver.CreateScene, HandleCreateScene);
+            _playMusicHook = DalamudApi.Hooks.HookFromAddress<OnPlayMusic>(TitleEditAddressResolver.PlayMusic, HandlePlayMusic);
+            _fixOnHook = DalamudApi.Hooks.HookFromAddress<OnFixOn>(TitleEditAddressResolver.FixOn, HandleFixOn);
+            _loadLogoResourceHook =
+                DalamudApi.Hooks.HookFromAddress<OnLoadLogoResource>(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
+            _loadTitleScreenAssetsHook = DalamudApi.Hooks.HookFromAddress<OnLoadTitleScreenAssets>(TitleEditAddressResolver.LoadTitleScreenAssets, HandleLoadTitleScreenAssets);
+            
             _setTime = Marshal.GetDelegateForFunctionPointer<SetTimePrototype>(TitleEditAddressResolver.SetTime);
-            PluginLog.Log("TitleEdit hook init finished");
+            DalamudApi.PluginLog.Info("TitleEdit hook init finished");
         }
 
         internal void RefreshCurrentTitleEditScreen()
@@ -136,7 +133,7 @@ namespace TitleEdit
             var path = Path.Combine(_titleScreenBasePath, toLoad + ".json");
             if (!File.Exists(path))
             {
-                PluginLog.Log(
+                DalamudApi.PluginLog.Info(
                     $"Title Edit tried to find {path}, but no title file was found, so title settings have been reset.");
                 Fail();
                 return;
@@ -147,21 +144,29 @@ namespace TitleEdit
 
             if (!IsScreenValid(_currentScreen))
             {
-                PluginLog.Log($"Title Edit tried to load {_currentScreen.Name}, but the necessary files are missing, so title settings have been reset.");
+                DalamudApi.PluginLog.Info($"Title Edit tried to load {_currentScreen.Name}, but the necessary files are missing, so title settings have been reset.");
                 Fail();
                 return;
             }
 
             Log($"Title Edit loaded {path}");
-            
+
             if (_configuration.DisplayTitleToast)
-                _pi.UiBuilder.AddNotification($"Now displaying: {_currentScreen.Name}", "Title Edit", NotificationType.Info);
+            {
+                Task.Delay(2000).ContinueWith(_ =>
+                {
+                    if (GetState("_TitleMenu") == UiState.Visible)
+                        DalamudApi.PluginInterface.UiBuilder.AddNotification($"Now displaying: {_currentScreen.Name}", "Title Edit", NotificationType.Info);
+                });
+
+            }
+
         }
 
         private bool IsScreenValid(TitleEditScreen screen)
         {
-            return _data.FileExists($"bg/{screen.TerritoryPath}.lvb") &&
-                   _data.FileExists(screen.BgmPath);
+            return DalamudApi.DataManager.FileExists($"bg/{screen.TerritoryPath}.lvb") &&
+                   DalamudApi.DataManager.FileExists(screen.BgmPath);
         }
 
         private void Fail()
@@ -189,7 +194,17 @@ namespace TitleEdit
                 return returnVal;
             }
 
-            if (IsTitleScreen(p1))
+            // Log("---------------");
+            // GetState("_ScreenText");
+            // GetState("Title");
+            // GetState("_TitleLogo");
+            // GetState("_TitleMenu");
+            // GetState("_TitleRevision");
+            // GetState("_TitleRights");
+            // GetState("CursorAddon");
+            // Log("---------------");
+
+            if (IsTitleScreen(p1))// && GetState("_ScreenText") != UiState.Null)
             {
                 Log("Loading custom title.");
                 RefreshCurrentTitleEditScreen();
@@ -216,9 +231,9 @@ namespace TitleEdit
 
         private IntPtr HandleFixOn(IntPtr self,
             [MarshalAs(UnmanagedType.LPArray, SizeConst = 3)]
-            float[] cameraPos,
+        float[] cameraPos,
             [MarshalAs(UnmanagedType.LPArray, SizeConst = 3)]
-            float[] focusPos,
+        float[] focusPos,
             float fovY)
         {
             Log(
@@ -233,20 +248,6 @@ namespace TitleEdit
                 FloatArrayFromVector3(_currentScreen.FixOnPos),
                 _currentScreen.FovY);
             // return _fixOnHook.Original(self, cameraPos, focusPos, fovY);
-        }
-
-        public TitleEditScreen FixOnCurrent()
-        {
-            Log("Requested FixOnCurrent");
-            if (_currentScreen == null)
-                RefreshCurrentTitleEditScreen();
-            FixOn(_currentScreen.CameraPos, _currentScreen.FixOnPos, _currentScreen.FovY);
-            if (TitleEditAddressResolver.LobbyCamera != IntPtr.Zero)
-                _fixOnHook.Original(TitleEditAddressResolver.LobbyCamera,
-                    FloatArrayFromVector3(_currentScreen.CameraPos),
-                    FloatArrayFromVector3(_currentScreen.FixOnPos),
-                    _currentScreen.FovY);
-            return _currentScreen;
         }
 
         public void FixOn(Vector3 cameraPos, Vector3 focusPos, float fov)
@@ -324,12 +325,12 @@ namespace TitleEdit
             //Find a better hook? idk  
             Task.Run(() =>
             {
-                for(int i = 0; i < 5; i++)
+                for (int i = 0; i < 5; i++)
                 {
                     Thread.Sleep(50);
                     SetTextColors();
-                }               
-            });      
+                }
+            });
         }
 
         public void Enable()
@@ -343,6 +344,8 @@ namespace TitleEdit
 
         public void Dispose()
         {
+            _amForcingTime = false;
+            _amForcingWeather = false;
             _loadTitleScreenAssetsHook.Dispose();
             _loadLogoResourceHook.Dispose();
             _createSceneHook.Dispose();
@@ -360,6 +363,9 @@ namespace TitleEdit
                     Stopwatch stop = Stopwatch.StartNew();
                     do
                     {
+                        if (!_amForcingTime)
+                            break;
+
                         if (TitleEditAddressResolver.SetTime != IntPtr.Zero)
                             _setTime(timeOffset);
                         Thread.Sleep(50);
@@ -369,7 +375,7 @@ namespace TitleEdit
                 }
                 catch (Exception e)
                 {
-                    PluginLog.Error(e, "An error occurred when forcing time.");
+                    DalamudApi.PluginLog.Error(e, "An error occurred when forcing time.");
                 }
             });
         }
@@ -384,6 +390,9 @@ namespace TitleEdit
                     Stopwatch stop = Stopwatch.StartNew();
                     do
                     {
+                        if (!_amForcingWeather)
+                            break;
+
                         SetWeather(weather);
                         Thread.Sleep(20);
                     } while (stop.ElapsedMilliseconds < forceTime && _amForcingWeather);
@@ -393,7 +402,7 @@ namespace TitleEdit
                 }
                 catch (Exception e)
                 {
-                    PluginLog.Error(e, "An error occurred when forcing weather.");
+                    DalamudApi.PluginLog.Error(e, "An error occurred when forcing weather.");
                 }
             });
         }
@@ -422,7 +431,7 @@ namespace TitleEdit
         // TODO: Eventually figure out how to do these without excluding free trial players
         private bool IsTitleScreen(string path)
         {
-            var ret = 
+            var ret =
                 (path == "ex4/05_zon_z5/chr/z5c1/level/z5c1"
                  || path == "ex3/05_zon_z4/chr/z4c1/level/z4c1"
                  || path == "ex2/05_zon_z3/chr/z3c1/level/z3c1"
@@ -436,7 +445,7 @@ namespace TitleEdit
 
         private bool IsLobby(string path)
         {
-            var ret = 
+            var ret =
                 GetState("CharaSelect") == UiState.Visible
                 && path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
             Log($"IsLobby: {ret}");
@@ -445,7 +454,7 @@ namespace TitleEdit
 
         private bool IsCharaMake(string path)
         {
-            var ret = 
+            var ret =
                 GetState("_CharaMakeBgSelector") == UiState.Visible
                 && path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
             Log($"IsCharaMake: {ret}");
@@ -461,8 +470,8 @@ namespace TitleEdit
 
         private unsafe UiState GetState(string uiName)
         {
-            Log($"GetState({uiName})");
-            var ui = (AtkUnitBase*)_gameGui.GetAddonByName(uiName, 1);
+            // Log($"GetState({uiName})");
+            var ui = (AtkUnitBase*)DalamudApi.GameGui.GetAddonByName(uiName, 1);
             var ret = UiState.Null;
             if (ui != null)
             {
@@ -479,7 +488,7 @@ namespace TitleEdit
             Task.Delay(delay).ContinueWith(_ =>
             {
                 Log($"Logo task running after {delay} delay");
-                var addon = (AtkUnitBase*)_gameGui.GetAddonByName("_TitleLogo", 1);
+                var addon = (AtkUnitBase*)DalamudApi.GameGui.GetAddonByName("_TitleLogo", 1);
                 if (addon == null || addon->UldManager.NodeListCount < 2) return;
                 var node = addon->UldManager.NodeList[1];
                 if (node == null) return;
@@ -506,7 +515,7 @@ namespace TitleEdit
 
         public unsafe void EnableTitleLogo()
         {
-            var addon = (AtkUnitBase*)_gameGui.GetAddonByName("_TitleLogo", 1);
+            var addon = (AtkUnitBase*)DalamudApi.GameGui.GetAddonByName("_TitleLogo", 1);
             if (addon == null || addon->UldManager.NodeListCount < 2) return;
             var node = addon->UldManager.NodeList[1];
             if (node == null) return;
@@ -601,9 +610,9 @@ namespace TitleEdit
                                 else if (no->Type == NodeType.NineGrid && _currentScreen.ButtonHighlightColor != null) //The button background
                                 {
                                     //#007fe0 - Approximation of the texture color of the highlight, the game modifies the color by correcting it with Add
-                                    no->AddRed = no->AddRed_2 = (ushort)_currentScreen.ButtonHighlightColor.Value.X;
-                                    no->AddGreen = no->AddGreen_2 = (ushort)((int)_currentScreen.ButtonHighlightColor.Value.Y - (int)0x7F);
-                                    no->AddBlue = no->AddBlue_2 = (ushort)((int)_currentScreen.ButtonHighlightColor.Value.Z - (int)0xE0);
+                                    no->AddRed = no->AddRed_2 = (short)_currentScreen.ButtonHighlightColor.Value.X;
+                                    no->AddGreen = no->AddGreen_2 = (short)((int)_currentScreen.ButtonHighlightColor.Value.Y - (int)0x7F);
+                                    no->AddBlue = no->AddBlue_2 = (short)((int)_currentScreen.ButtonHighlightColor.Value.Z - (int)0xE0);
 
                                     no->Color.A = (byte)_currentScreen.ButtonHighlightColor.Value.W;
                                 }
@@ -660,52 +669,52 @@ namespace TitleEdit
             return ret;
         }
 
-// This can be used to find new title screen (lol) logo animation lengths
-// public void LogLogoVisible()
-// {
-//     int logoResNode1Offset = 200;
-//     int logoResNode2Offset = 56;
-//     int logoResNodeFlagOffset = 0x9E;
-//     ushort visibleFlag = 0x10;
-//
-//     ushort flagVal;
-//     var start = Stopwatch.StartNew();
-//
-//     do
-//     {
-//         IntPtr flag = _gameGui.GetAddonByName("_TitleLogo", 1);
-//         if (flag == IntPtr.Zero) continue;
-//         flag = Marshal.ReadIntPtr(flag, logoResNode1Offset);
-//         if (flag == IntPtr.Zero) continue;
-//         flag = Marshal.ReadIntPtr(flag, logoResNode2Offset);
-//         if (flag == IntPtr.Zero) continue;
-//         flag += logoResNodeFlagOffset;
-//
-//         unsafe
-//         {
-//             flagVal = *(ushort*) flag.ToPointer();
-//             if ((flagVal & visibleFlag) == visibleFlag)
-//                 PluginLog.Log($"visible: {(flagVal & visibleFlag) == visibleFlag} | {start.ElapsedMilliseconds}");
-//             
-//             // arr: 59
-//             // arrft: 61
-//             // hw: 57
-//             // sb: 2060
-//             // shb: 2060
-//             // ew: 10500
-//             *(ushort*) flag.ToPointer() = (ushort) (flagVal & ~visibleFlag);
-//         }
-//     } while (start.ElapsedMilliseconds < 15000);
-//
-//     start.Stop();
-// }
+        // This can be used to find new title screen (lol) logo animation lengths
+        // public void LogLogoVisible()
+        // {
+        //     int logoResNode1Offset = 200;
+        //     int logoResNode2Offset = 56;
+        //     int logoResNodeFlagOffset = 0x9E;
+        //     ushort visibleFlag = 0x10;
+        //
+        //     ushort flagVal;
+        //     var start = Stopwatch.StartNew();
+        //
+        //     do
+        //     {
+        //         IntPtr flag = _gameGui.GetAddonByName("_TitleLogo", 1);
+        //         if (flag == IntPtr.Zero) continue;
+        //         flag = Marshal.ReadIntPtr(flag, logoResNode1Offset);
+        //         if (flag == IntPtr.Zero) continue;
+        //         flag = Marshal.ReadIntPtr(flag, logoResNode2Offset);
+        //         if (flag == IntPtr.Zero) continue;
+        //         flag += logoResNodeFlagOffset;
+        //
+        //         unsafe
+        //         {
+        //             flagVal = *(ushort*) flag.ToPointer();
+        //             if ((flagVal & visibleFlag) == visibleFlag)
+        //                 DalamudApi.PluginLog.Info($"visible: {(flagVal & visibleFlag) == visibleFlag} | {start.ElapsedMilliseconds}");
+        //             
+        //             // arr: 59
+        //             // arrft: 61
+        //             // hw: 57
+        //             // sb: 2060
+        //             // shb: 2060
+        //             // ew: 10500
+        //             *(ushort*) flag.ToPointer() = (ushort) (flagVal & ~visibleFlag);
+        //         }
+        //     } while (start.ElapsedMilliseconds < 15000);
+        //
+        //     start.Stop();
+        // }
 
         private void Log(string s)
         {
 #if !DEBUG
             if (_configuration.DebugLogging)
 #endif
-            PluginLog.Log($"[dbg] {s}");
+            DalamudApi.PluginLog.Debug($"[dbg] {s}");
         }
     }
 }
