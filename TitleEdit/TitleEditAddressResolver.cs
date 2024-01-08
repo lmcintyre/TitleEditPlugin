@@ -27,6 +27,9 @@ namespace TitleEdit
         public static IntPtr PlayMusic { get; private set; }
         public static IntPtr BgmControl { get; private set; }
         public static IntPtr WeatherPtrBase { get; private set; }
+        public static IntPtr LobbyUpdate { get; private set; }
+        public static IntPtr LobbyCurrentMap { get; private set; }
+        public static IntPtr LobbyThing { get; private set; }
 
         public static void Setup64Bit()
         {
@@ -38,6 +41,23 @@ namespace TitleEdit
             PlayMusic = DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 89 47 18 89 5F 20");
             BgmControl = DalamudApi.SigScanner.GetStaticAddressFromSig("48 8B 05 ?? ?? ?? ?? 48 85 C0 74 37 83 78 08 04");
             WeatherPtrBase = DalamudApi.SigScanner.GetStaticAddressFromSig("48 8B 05 ?? ?? ?? ?? 48 8B D9 0F 29 7C 24 ?? 41 8B FF");
+            LobbyUpdate = DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? EB 1C 3B CF");
+            LobbyCurrentMap = DalamudApi.SigScanner.GetStaticAddressFromSig("0F B7 05 ?? ?? ?? ?? 49 8B CE");
+            LobbyThing = DalamudApi.SigScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 8B 51 38 2B D3");
+        }
+
+        public static int GetGameExpectedTitleScreen()
+        {
+            unsafe
+            {
+                return *(int*) (*((nint*)LobbyThing) + 56);
+            }
+        }
+
+        public static short CurrentLobbyMap
+        {
+            get => Marshal.ReadInt16(LobbyCurrentMap);
+            set => Marshal.WriteInt16(LobbyCurrentMap, value);
         }
     }
 }

@@ -25,6 +25,7 @@ public class TitleEdit
     private delegate ulong OnLoadLogoResource(IntPtr p1, string p2, int p3, int p4);
     private delegate IntPtr OnPlayMusic(IntPtr self, string filename, float volume, uint fadeTime);
     private delegate void SetTimePrototype(ushort timeOffset);
+    private delegate byte LobbyUpdate(GameLobbyType mapId, int time);
 
     // The size of the BGMControl object
     private const int ControlSize = 88;
@@ -34,13 +35,14 @@ public class TitleEdit
     private readonly Hook<OnPlayMusic> _playMusicHook;
     private readonly Hook<OnFixOn> _fixOnHook;
     private readonly Hook<OnLoadLogoResource> _loadLogoResourceHook;
-
+    private readonly Hook<LobbyUpdate> _lobbyUpdateHook;
     private readonly SetTimePrototype _setTime;
 
     private readonly string _titleScreenBasePath;
     private bool _titleCameraNeedsSet;
     private bool _amForcingTime;
     private bool _amForcingWeather;
+    private GameLobbyType _lastLobbyUpdateMapId = GameLobbyType.Movie;
 
     private TitleEditScreen _currentScreen;
 
@@ -72,9 +74,36 @@ public class TitleEdit
         _fixOnHook = DalamudApi.Hooks.HookFromAddress<OnFixOn>(TitleEditAddressResolver.FixOn, HandleFixOn);
         _loadLogoResourceHook =
             DalamudApi.Hooks.HookFromAddress<OnLoadLogoResource>(TitleEditAddressResolver.LoadLogoResource, HandleLoadLogoResource);
+        _lobbyUpdateHook = DalamudApi.Hooks.HookFromAddress<LobbyUpdate>(TitleEditAddressResolver.LobbyUpdate, LobbyUpdateDetour);
 
         _setTime = Marshal.GetDelegateForFunctionPointer<SetTimePrototype>(TitleEditAddressResolver.SetTime);
         DalamudApi.PluginLog.Info("TitleEdit hook init finished");
+    }
+    
+    private byte LobbyUpdateDetour(GameLobbyType mapId, int time)
+    {
+        _lastLobbyUpdateMapId = mapId;
+        var gameTitleScreen = TitleEditAddressResolver.GetGameExpectedTitleScreen(); // this is expac title, not GameLobbyType
+        var currentMap = (GameLobbyType)TitleEditAddressResolver.CurrentLobbyMap;
+
+        var isARRTitleScreen = gameTitleScreen == 0;
+        var isTitleScreenToLobby = currentMap == GameLobbyType.Title && mapId == GameLobbyType.CharaSelect;
+        var isLobbyToTitleScreen = currentMap == GameLobbyType.CharaSelect && mapId == GameLobbyType.Title;
+        var shouldApply = isARRTitleScreen && (isTitleScreenToLobby || isLobbyToTitleScreen);
+        
+        DalamudApi.PluginLog.Verbose($"[LobbyUpdateDetour] map {mapId} time {time} currentMap {currentMap} " +
+                                   $"gameTitleScreen {gameTitleScreen} isARRTitleScreen {isARRTitleScreen} " +
+                                   $"isTitleScreenToLobby {isTitleScreenToLobby} isLobbyToTitleScreen {isLobbyToTitleScreen} " +
+                                   $"shouldApply {shouldApply}");
+        
+        if (shouldApply)
+        {
+            DalamudApi.PluginLog.Debug($"[LobbyUpdateDetour] Running!");
+            // This tells the game it was playing a movie so it skips the "same zone" check entirely
+            TitleEditAddressResolver.CurrentLobbyMap = (short)GameLobbyType.Movie;
+        }
+        
+        return _lobbyUpdateHook.Original(mapId, time);
     }
 
     internal void RefreshCurrentTitleEditScreen()
@@ -130,9 +159,7 @@ public class TitleEdit
                 if (GetState("_TitleMenu") == UiState.Visible)
                     DalamudApi.PluginInterface.UiBuilder.AddNotification($"Now displaying: {_currentScreen.Name}", "Title Edit", NotificationType.Info);
             });
-
         }
-            
     }
 
     private bool IsScreenValid(TitleEditScreen screen)
@@ -158,25 +185,15 @@ public class TitleEdit
         _amForcingTime = false;
         _amForcingWeather = false;
 
-        if (IsLobby(p1))
+        if (_lastLobbyUpdateMapId == GameLobbyType.CharaSelect)
         {
             Log("Loading lobby and lobby fixon.");
             var returnVal = _createSceneHook.Original(p1, p2, p3, p4, p5, p6, p7);
             FixOn(new Vector3(0, 0, 0), new Vector3(0, 0.8580103f, 0), 1);
             return returnVal;
         }
-            
-        // Log("---------------");
-        // GetState("_ScreenText");
-        // GetState("Title");
-        // GetState("_TitleLogo");
-        // GetState("_TitleMenu");
-        // GetState("_TitleRevision");
-        // GetState("_TitleRights");
-        // GetState("CursorAddon");
-        // Log("---------------");
 
-        if (IsTitleScreen(p1))// && GetState("_ScreenText") != UiState.Null)
+        if (_lastLobbyUpdateMapId == GameLobbyType.Title)
         {
             Log("Loading custom title.");
             RefreshCurrentTitleEditScreen();
@@ -295,6 +312,7 @@ public class TitleEdit
         _createSceneHook.Enable();
         _playMusicHook.Enable();
         _fixOnHook.Enable();
+        _lobbyUpdateHook.Enable();
     }
 
     public void Dispose()
@@ -305,6 +323,7 @@ public class TitleEdit
         _createSceneHook.Dispose();
         _playMusicHook.Dispose();
         _fixOnHook.Dispose();
+        _lobbyUpdateHook.Dispose();
     }
 
     private void ForceTime(ushort timeOffset, int forceTime)
@@ -382,39 +401,6 @@ public class TitleEdit
         }
     }
 
-    // TODO: Eventually figure out how to do these without excluding free trial players
-    private bool IsTitleScreen(string path)
-    {
-        var ret = 
-            (path == "ex4/05_zon_z5/chr/z5c1/level/z5c1"
-             || path == "ex3/05_zon_z4/chr/z4c1/level/z4c1"
-             || path == "ex2/05_zon_z3/chr/z3c1/level/z3c1"
-             || path == "ex1/05_zon_z2/chr/z2c1/level/z2c1"
-             || path == "ffxiv/zon_z1/chr/z1c1/level/z1c1")
-            && !IsLobby(path)
-            && !IsCharaMake(path);
-        Log($"IsTitleScreen: {ret}");
-        return ret;
-    }
-
-    private bool IsLobby(string path)
-    {
-        var ret = 
-            GetState("CharaSelect") == UiState.Visible
-            && path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
-        Log($"IsLobby: {ret}");
-        return ret;
-    }
-
-    private bool IsCharaMake(string path)
-    {
-        var ret = 
-            GetState("_CharaMakeBgSelector") == UiState.Visible
-            && path == "ffxiv/zon_z1/chr/z1c1/level/z1c1";
-        Log($"IsCharaMake: {ret}");
-        return ret;
-    }
-
     enum UiState
     {
         Null,
@@ -425,7 +411,7 @@ public class TitleEdit
     private unsafe UiState GetState(string uiName)
     {
         // Log($"GetState({uiName})");
-        var ui = (AtkUnitBase*)DalamudApi.GameGui.GetAddonByName(uiName, 1);
+        var ui = (AtkUnitBase*)DalamudApi.GameGui.GetAddonByName(uiName);
         var ret = UiState.Null;
         if (ui != null)
         {
@@ -442,7 +428,7 @@ public class TitleEdit
         Task.Delay(delay).ContinueWith(_ =>
         {
             Log($"Logo task running after {delay} delay");
-            var addon = (AtkUnitBase*)DalamudApi.GameGui.GetAddonByName("_TitleLogo", 1);
+            var addon = (AtkUnitBase*)DalamudApi.GameGui.GetAddonByName("_TitleLogo");
             if (addon == null || addon->UldManager.NodeListCount < 2) return;
             var node = addon->UldManager.NodeList[1];
             if (node == null) return;
@@ -469,7 +455,7 @@ public class TitleEdit
 
     public unsafe void EnableTitleLogo()
     {
-        var addon = (AtkUnitBase*)DalamudApi.GameGui.GetAddonByName("_TitleLogo", 1);
+        var addon = (AtkUnitBase*)DalamudApi.GameGui.GetAddonByName("_TitleLogo");
         if (addon == null || addon->UldManager.NodeListCount < 2) return;
         var node = addon->UldManager.NodeList[1];
         if (node == null) return;
@@ -589,9 +575,6 @@ public class TitleEdit
 
     private void Log(string s)
     {
-#if !DEBUG
-            if (_configuration.DebugLogging)
-#endif
         DalamudApi.PluginLog.Debug($"[dbg] {s}");
     }
 }
