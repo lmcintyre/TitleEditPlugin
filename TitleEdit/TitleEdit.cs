@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Hooking;
-using Dalamud.Interface.Internal.Notifications;
+using Dalamud.Interface.ImGuiNotification;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Newtonsoft.Json;
 
@@ -17,14 +17,19 @@ namespace TitleEdit;
 public class TitleEdit
 {
     private delegate int OnCreateScene(string p1, uint p2, IntPtr p3, uint p4, IntPtr p5, int p6, uint p7);
+
     private delegate IntPtr OnFixOn(IntPtr self,
         [MarshalAs(UnmanagedType.LPArray, SizeConst = 3)]
         float[] cameraPos,
         [MarshalAs(UnmanagedType.LPArray, SizeConst = 3)]
         float[] focusPos, float fovY);
+
     private delegate ulong OnLoadLogoResource(IntPtr p1, string p2, int p3, int p4);
+
     private delegate IntPtr OnPlayMusic(IntPtr self, string filename, float volume, uint fadeTime);
+
     private delegate void SetTimePrototype(ushort timeOffset);
+
     private delegate byte LobbyUpdate(GameLobbyType mapId, int time);
 
     // The size of the BGMControl object
@@ -78,31 +83,35 @@ public class TitleEdit
 
         _setTime = Marshal.GetDelegateForFunctionPointer<SetTimePrototype>(TitleEditAddressResolver.SetTime);
         DalamudApi.PluginLog.Info("TitleEdit hook init finished");
+
+        Task.Run(LogLogoVisible);
     }
-    
+
     private byte LobbyUpdateDetour(GameLobbyType mapId, int time)
     {
         _lastLobbyUpdateMapId = mapId;
         var gameTitleScreen = TitleEditAddressResolver.GetGameExpectedTitleScreen(); // this is expac title, not GameLobbyType
         var currentMap = (GameLobbyType)TitleEditAddressResolver.CurrentLobbyMap;
 
-        var isARRTitleScreen = gameTitleScreen == 0;
+        // var isARRTitleScreen = gameTitleScreen == 0;
         var isTitleScreenToLobby = currentMap == GameLobbyType.Title && mapId == GameLobbyType.CharaSelect;
         var isLobbyToTitleScreen = currentMap == GameLobbyType.CharaSelect && mapId == GameLobbyType.Title;
-        var shouldApply = isARRTitleScreen && (isTitleScreenToLobby || isLobbyToTitleScreen);
-        
+        // var shouldApply = isARRTitleScreen && (isTitleScreenToLobby || isLobbyToTitleScreen);
+        var shouldApply = (isTitleScreenToLobby || isLobbyToTitleScreen);
+
         DalamudApi.PluginLog.Verbose($"[LobbyUpdateDetour] map {mapId} time {time} currentMap {currentMap} " +
-                                   $"gameTitleScreen {gameTitleScreen} isARRTitleScreen {isARRTitleScreen} " +
-                                   $"isTitleScreenToLobby {isTitleScreenToLobby} isLobbyToTitleScreen {isLobbyToTitleScreen} " +
-                                   $"shouldApply {shouldApply}");
-        
+                                     // $"gameTitleScreen {gameTitleScreen} isARRTitleScreen {isARRTitleScreen} " +
+                                     $"gameTitleScreen {gameTitleScreen} " +
+                                     $"isTitleScreenToLobby {isTitleScreenToLobby} isLobbyToTitleScreen {isLobbyToTitleScreen} " +
+                                     $"shouldApply {shouldApply}");
+
         if (shouldApply)
         {
             DalamudApi.PluginLog.Debug($"[LobbyUpdateDetour] Running!");
             // This tells the game it was playing a movie so it skips the "same zone" check entirely
             TitleEditAddressResolver.CurrentLobbyMap = (short)GameLobbyType.Movie;
         }
-        
+
         return _lobbyUpdateHook.Original(mapId, time);
     }
 
@@ -157,7 +166,12 @@ public class TitleEdit
             Task.Delay(2000).ContinueWith(_ =>
             {
                 if (GetState("_TitleMenu") == UiState.Visible)
-                    DalamudApi.PluginInterface.UiBuilder.AddNotification($"Now displaying: {_currentScreen.Name}", "Title Edit", NotificationType.Info);
+                    DalamudApi.NotificationManager.AddNotification(new Notification
+                    {
+                        Content = $"Now displaying: {_currentScreen.Name}",
+                        Title = "Title Edit",
+                        Type = NotificationType.Info,
+                    });
             });
         }
     }
@@ -338,7 +352,7 @@ public class TitleEdit
                 {
                     if (!_amForcingTime)
                         break;
-                    
+
                     if (TitleEditAddressResolver.SetTime != IntPtr.Zero)
                         _setTime(timeOffset);
                     Thread.Sleep(50);
@@ -365,7 +379,7 @@ public class TitleEdit
                 {
                     if (!_amForcingWeather)
                         break;
-                    
+
                     SetWeather(weather);
                     Thread.Sleep(20);
                 } while (stop.ElapsedMilliseconds < forceTime && _amForcingWeather);
@@ -417,6 +431,7 @@ public class TitleEdit
         {
             ret = ui->IsVisible ? UiState.Visible : UiState.NotNull;
         }
+
         Log($"GetState({uiName}): {ret}");
         return ret;
     }
@@ -534,44 +549,27 @@ public class TitleEdit
     }
 
     // This can be used to find new title screen (lol) logo animation lengths
-    // public void LogLogoVisible()
-    // {
-    //     int logoResNode1Offset = 200;
-    //     int logoResNode2Offset = 56;
-    //     int logoResNodeFlagOffset = 0x9E;
-    //     ushort visibleFlag = 0x10;
-    //
-    //     ushort flagVal;
-    //     var start = Stopwatch.StartNew();
-    //
-    //     do
-    //     {
-    //         IntPtr flag = _gameGui.GetAddonByName("_TitleLogo", 1);
-    //         if (flag == IntPtr.Zero) continue;
-    //         flag = Marshal.ReadIntPtr(flag, logoResNode1Offset);
-    //         if (flag == IntPtr.Zero) continue;
-    //         flag = Marshal.ReadIntPtr(flag, logoResNode2Offset);
-    //         if (flag == IntPtr.Zero) continue;
-    //         flag += logoResNodeFlagOffset;
-    //
-    //         unsafe
-    //         {
-    //             flagVal = *(ushort*) flag.ToPointer();
-    //             if ((flagVal & visibleFlag) == visibleFlag)
-    //                 DalamudApi.PluginLog.Info($"visible: {(flagVal & visibleFlag) == visibleFlag} | {start.ElapsedMilliseconds}");
-    //             
-    //             // arr: 59
-    //             // arrft: 61
-    //             // hw: 57
-    //             // sb: 2060
-    //             // shb: 2060
-    //             // ew: 10500
-    //             *(ushort*) flag.ToPointer() = (ushort) (flagVal & ~visibleFlag);
-    //         }
-    //     } while (start.ElapsedMilliseconds < 15000);
-    //
-    //     start.Stop();
-    // }
+    public unsafe void LogLogoVisible()
+    {
+        // arr: 59
+        // arrft: 61
+        // hw: 57
+        // sb: 2060
+        // shb: 2060
+        // ew: 10500
+        // dt: 20700
+        
+        var start = Stopwatch.StartNew();
+        do
+        {
+            var ptr = DalamudApi.Framework.RunOnFrameworkThread(() => DalamudApi.GameGui.GetAddonByName("_TitleLogo")).Result;
+            if (ptr == IntPtr.Zero) continue;
+            var titleLogo = (AtkUnitBase*)ptr;
+            DalamudApi.PluginLog.Info($"visible: {titleLogo->IsVisible} | {start.ElapsedMilliseconds}");
+        } while (start.ElapsedMilliseconds < 30000);
+    
+        start.Stop();
+    }
 
     private void Log(string s)
     {

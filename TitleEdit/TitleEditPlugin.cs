@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Dalamud.Game.Command;
+using Dalamud.Interface.Textures;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ImGuiNET;
@@ -79,29 +80,29 @@ namespace TitleEdit
         private Dictionary<uint, TerritoryType> _territoryPaths;
         private Dictionary<uint, string> _weathers;
 
-        public TitleEditPlugin(DalamudPluginInterface pi)
+        public TitleEditPlugin(IDalamudPluginInterface pi)
         {
             DalamudApi.Initialize(pi);
             DalamudApi.PluginLog.Info("===== T I T L E E D I T =====");
 
             // Load menu_icon.png from dll resources
-            var assembly = Assembly.GetExecutingAssembly();
-            var resourceStream = assembly.GetManifestResourceStream("TitleEdit.menu_icon.png");
-            if (resourceStream != null)
-            {
-                var imageBytes = new byte[resourceStream.Length];
-                resourceStream.Read(imageBytes, 0, (int) resourceStream.Length);
-                DalamudApi.PluginLog.Information($"image is {imageBytes.Length} bytes");
-                try
-                {
-                    var image = DalamudApi.PluginInterface.UiBuilder.LoadImage(imageBytes);
-                    DalamudApi.TitleScreenMenu.AddEntry("Title Edit Menu", image, () => { _isImguiTitleEditOpen = true; });
-                }
-                catch (Exception e)
-                {
-                    DalamudApi.PluginLog.Error(e, "Title Edit encountered an error loading menu icon");
-                }
-            }           
+            // var assembly = Assembly.GetExecutingAssembly();
+            // var resourceStream = assembly.GetManifestResourceStream("TitleEdit.menu_icon.png");
+            // if (resourceStream != null)
+            // {
+            //     var imageBytes = new byte[resourceStream.Length];
+            //     resourceStream.Read(imageBytes, 0, (int) resourceStream.Length);
+            //     DalamudApi.PluginLog.Information($"image is {imageBytes.Length} bytes");
+            //     try
+            //     {
+            //         var image = DalamudApi.TextureProvider.GetFromManifestResource(Assembly.GetExecutingAssembly(), "TitleEdit.menu_icon.png");
+            //         DalamudApi.TitleScreenMenu.AddEntry("Title Edit Menu", image.GetWrapOrEmpty(), () => { _isImguiTitleEditOpen = true; });
+            //     }
+            //     catch (Exception e)
+            //     {
+            //         DalamudApi.PluginLog.Error(e, "Title Edit encountered an error loading menu icon");
+            //     }
+            // }           
             
             DalamudApi.CommandManager.AddHandler(TitleEditCommand, new CommandInfo(OnTitleEditCommand)
             {
@@ -442,7 +443,7 @@ namespace TitleEdit
                 long etS = 0;
                 unsafe
                 {
-                    etS = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->EorzeaTime;    
+                    etS = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->ClientTime.EorzeaTime;    
                 }
                 var et = DateTimeOffset.FromUnixTimeSeconds(etS);
                 ImGui.Text($"Current time: {et.Hour:D2}:{et.Minute:D2}");

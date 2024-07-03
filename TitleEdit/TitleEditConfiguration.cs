@@ -27,9 +27,9 @@ namespace TitleEdit
 
         int IPluginConfiguration.Version { get; set; } = 2;
 
-        [NonSerialized] private DalamudPluginInterface _pluginInterface;
+        [NonSerialized] private IDalamudPluginInterface _pluginInterface;
         
-        public void Initialize(DalamudPluginInterface pluginInterface)
+        public void Initialize(IDalamudPluginInterface pluginInterface)
         {
             _pluginInterface = pluginInterface;
         }

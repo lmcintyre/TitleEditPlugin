@@ -33,17 +33,17 @@ namespace TitleEdit
 
         public static void Setup64Bit()
         {
-            LoadLogoResource = DalamudApi.SigScanner.ScanText("48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 41 8B F9 41 0F B6 F0 48 8B D9 48 85 D2 75 12");
-            CameraBase = DalamudApi.SigScanner.GetStaticAddressFromSig("4C 8D 35 ?? ?? ?? ?? 85 D2");
+            LoadLogoResource = DalamudApi.SigScanner.ScanText("E9 ?? ?? ?? ?? 90 5E");
+            CameraBase = DalamudApi.SigScanner.GetStaticAddressFromSig("4C 8D 35 ?? ?? ?? ?? 48 8B 09");
             SetTime = DalamudApi.SigScanner.ScanText("40 53 48 83 EC 20 44 0F BF C1 B8 ?? ?? ?? ?? 41 F7 E8 66 89 0D ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? C1 FA 05 8B C2 C1 E8 1F 03 D0");
-            CreateScene = DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 66 89 1D ?? ?? ?? ?? E9 ?? ?? ?? ??");
+            CreateScene = DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 66 89 1D ?? ?? ?? ?? E9");
             FixOn = DalamudApi.SigScanner.ScanText("C6 81 ?? ?? ?? ?? ?? 8B 02 89 41 60");
             PlayMusic = DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 89 47 18 89 5F 20");
-            BgmControl = DalamudApi.SigScanner.GetStaticAddressFromSig("48 8B 05 ?? ?? ?? ?? 48 85 C0 74 37 83 78 08 04");
-            WeatherPtrBase = DalamudApi.SigScanner.GetStaticAddressFromSig("48 8B 05 ?? ?? ?? ?? 48 8B D9 0F 29 7C 24 ?? 41 8B FF");
-            LobbyUpdate = DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? EB 1C 3B CF");
-            LobbyCurrentMap = DalamudApi.SigScanner.GetStaticAddressFromSig("0F B7 05 ?? ?? ?? ?? 49 8B CE");
-            LobbyThing = DalamudApi.SigScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 8B 51 38 2B D3");
+            BgmControl = DalamudApi.SigScanner.GetStaticAddressFromSig("48 8B 05 ?? ?? ?? ?? 48 85 C0 74 51 83 78 08 0B");
+            WeatherPtrBase = DalamudApi.SigScanner.GetStaticAddressFromSig("4C 8B 05 ?? ?? ?? ?? 41 8B 90 ?? ?? ?? ?? 8B C2 C1 E8 07");
+            LobbyUpdate = DalamudApi.SigScanner.ScanText("E8 ?? ?? ?? ?? 80 BF ?? ?? ?? ?? ?? 48 8D 35");
+            LobbyCurrentMap = DalamudApi.SigScanner.GetStaticAddressFromSig("66 83 3D ?? ?? ?? ?? ?? 74 0F");
+            // LobbyThing = DalamudApi.SigScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 8B 51 38 2B D3");
         }
 
         public static int GetGameExpectedTitleScreen()
